@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PosePilot - AI Posture Monitoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.11.4/dist/ScrollTrigger.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Montserrat:wght@300;500;700&display=swap');
+        
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.2) 0%, rgba(15, 23, 42, 0) 70%);
+        }
+        
+        .logo-container {
+            perspective: 1000px;
+        }
+        
+        .morphing-logo {
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        .scroll-indicator {
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-20px);}
+            60% {transform: translateY(-10px);}
+        }
+        
+        .badge {
+            background: linear-gradient(45deg, #10b981 0%, #3b82f6 100%);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        
+        .tech-icon {
+            filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+            transition: all 0.3s ease;
+        }
+        
+        .tech-icon:hover {
+            transform: translateY(-5px);
+            filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.8));
+        }
+        
+        #canvas3d {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- 3D Background Canvas -->
+    <canvas id="canvas3d"></canvas>
+    
+    <!-- Hero Section -->
+    <section class="min-h-screen hero-gradient flex flex-col items-center justify-center relative overflow-hidden px-4">
+        <div class="logo-container mb-12">
+            <div class="morphing-logo w-64 h-64 mx-auto bg-gradient-to-br from-emerald-400 to-blue-500 rounded-3xl shadow-2xl shadow-emerald-400/30 flex items-center justify-center relative overflow-hidden">
+                <div class="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+                <div class="relative z-10 text-center">
+                    <h1 class="text-5xl font-bold text-white font-orbitron tracking-tighter">P</h1>
+                    <div class="w-16 h-1 bg-white mx-auto my-2"></div>
+                    <p class="text-xs uppercase tracking-widest text-white/80">PosePilot</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex items-center justify-center space-x-4 mb-6">
+            <!-- PosePilot Title -->
+            <h1 class="text-5xl md:text-7xl font-bold font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500">
+                PosePilot
+            </h1>
+        
+            <!-- X Divider -->
+            <span class="text-3xl md:text-5xl font-bold text-white/50 font-mono">X</span>
+        
+            <!-- Bitcamp Logo -->
+            <img src="bitcamp-logo-badge.png" alt="Bitcamp Logo" class="h-45 md:h-20">
+        </div>
+        
+        
+        <p class="text-xl md:text-2xl text-center max-w-3xl mx-auto mb-12 text-white/90 leading-relaxed">
+            AI-powered posture monitoring for gamers, developers, and desk warriors.
+        </p>
+        
+        <div class="flex gap-4 mb-24">
+            <button class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-blue-600 rounded-full text-white font-medium shadow-lg hover:shadow-emerald-500/30 transition-all hover:scale-105">
+                Try Demo
+            </button>
+            <button class="px-8 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white font-medium hover:bg-white/20 transition-all">
+                Learn More
+            </button>
+        </div>
+        
+        <div class="scroll-indicator absolute bottom-10 left-1/2 transform -translate-x-1/2 flex flex-col items-center">
+            <p class="text-sm mb-2 text-white/60">Scroll to explore</p>
+            <div class="w-6 h-10 border-2 border-white/60 rounded-full flex justify-center">
+                <div class="w-1 h-2 bg-white/80 rounded-full mt-2 animate-pulse"></div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- About Section -->
+    <section class="py-20 px-4 max-w-6xl mx-auto">
+        <div class="flex flex-col md:flex-row items-center gap-12 mb-20">
+            <div class="md:w-1/2">
+                <h2 class="text-3xl md:text-4xl font-bold mb-6 font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500">
+                    Hi, we're Team PosePilot
+                </h2>
+                <p class="text-lg text-white/80 leading-relaxed mb-6">
+                    We built an AI-powered posture monitoring assistant, designed especially for gamers, developers, and anyone who spends long hours at a desk.
+                </p>
+                <p class="text-lg text-white/80 leading-relaxed">
+                    Our system uses YOLOv8-Pose to detect your posture in real time using just your webcam — and gives immediate feedback on how you're sitting, whether you're slouching, and how long you've been misaligned.
+                </p>
+            </div>
+            <div class="md:w-1/2">
+                <div class="morphing-logo w-full h-80 bg-gradient-to-br from-blue-500 to-emerald-400 rounded-3xl shadow-2xl shadow-blue-400/30 flex items-center justify-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+                    <div class="relative z-10 text-center p-8">
+                        <h3 class="text-2xl font-bold text-white mb-4">Real-time Posture Analysis</h3>
+                        <div class="flex justify-center mb-6">
+                            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                            </div>
+                            <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="text-white/80">Using advanced computer vision to keep your spine aligned</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- How It Works -->
+        <div class="mb-20">
+            <h2 class="text-3xl md:text-4xl font-bold mb-12 text-center font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500">
+                How Posture is Measured
+            </h2>
+            
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10">
+                    <div class="w-12 h-12 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Vector Math</h3>
+                    <p class="text-white/70">We create vectors between body keypoints from YOLOv8-Pose to calculate precise angles.</p>
+                </div>
+                
+                <div class="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10">
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Trigonometry</h3>
+                    <p class="text-white/70">Using dot product and arccos to compute angles between vectors and vertical references.</p>
+                </div>
+                
+                <div class="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10">
+                    <div class="w-12 h-12 bg-purple-500/20 rounded-full flex items-center justify-center mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Threshold Detection</h3>
+                    <p class="text-white/70">Classifying as bad posture when angles exceed 20° for neck or back alignment.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Features -->
+        <div class="mb-20">
+            <h2 class="text-3xl md:text-4xl font-bold mb-12 text-center font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500">
+                Score, Alerts, and Badges
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-8 mb-12">
+                <div class="bg-gradient-to-br from-blue-500/10 to-emerald-400/10 p-8 rounded-2xl border border-white/10">
+                    <h3 class="text-2xl font-bold mb-4">Real-time Posture Score</h3>
+                    <p class="text-white/80 mb-6">We continuously calculate how long you've maintained good vs bad posture to compute a comprehensive score.</p>
+                    <div class="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full" style="width: 78%"></div>
+                    </div>
+                    <p class="text-sm text-white/60 mt-2">Current session: 78% Good Posture</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-8 rounded-2xl border border-white/10">
+                    <h3 class="text-2xl font-bold mb-4">Smart Alerts</h3>
+                    <p class="text-white/80 mb-6">If you've been sitting poorly for more than 3 minutes, we trigger a posture alert with a warning beep.</p>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-pink-500/20 rounded-full flex items-center justify-center mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                        </div>
+                        <p class="text-sm text-white/80">Last alert: 12 minutes ago</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <h3 class="text-xl font-bold mb-6">Earn Achievement Badges</h3>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <div class="badge px-4 py-2 rounded-full text-white text-sm font-medium">
+                        Posture Master
+                    </div>
+                    <div class="badge px-4 py-2 rounded-full text-white text-sm font-medium">
+                        Fast Tracker
+                    </div>
+                    <div class="badge px-4 py-2 rounded-full text-white text-sm font-medium">
+                        3-Day Streak
+                    </div>
+                    <div class="bg-white/10 px-4 py-2 rounded-full text-white text-sm font-medium">
+                        Spine Guardian
+                    </div>
+                    <div class="bg-white/10 px-4 py-2 rounded-full text-white text-sm font-medium">
+                        Alignment Pro
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Technology Stack -->
+        <div class="mb-20">
+            <h2 class="text-3xl md:text-4xl font-bold mb-12 text-center font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500">
+                Backend Architecture
+            </h2>
+            
+            <div class="bg-white/5 backdrop-blur-sm p-8 rounded-2xl border border-white/10">
+                <div class="grid md:grid-cols-4 gap-8">
+                    <div class="flex flex-col items-center">
+                        <div class="tech-icon mb-4">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Python.svg/1200px-Python.svg.png" class="h-16" alt="Python">
+                        </div>
+                        <p class="text-white/80">YOLOv8 Pose</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="tech-icon mb-4">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Flask_logo.svg/1200px-Flask_logo.svg.png" class="h-16" alt="Flask">
+                        </div>
+                        <p class="text-white/80">Flask API</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="tech-icon mb-4">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/HTML5_logo_and_wordmark.svg/1200px-HTML5_logo_and_wordmark.svg.png" class="h-16" alt="HTML5">
+                        </div>
+                        <p class="text-white/80">HTML</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="tech-icon mb-4">
+                            <img src="Tailwind_CSS_Logo.svg.png" class="h-16" alt="Tailwind CSS">
+                        </div>
+                        <p class="text-white/80">TailwindCSS</p>
+                    </div>
+                </div>
+                
+                <div class="mt-12 bg-black/30 p-6 rounded-xl">
+                    <div class="flex items-start">
+                        <div class="text-green-400 mr-4">1</div>
+                        <div>
+                            <span class="text-blue-400">POST</span> <span class="text-white">/detect_posture</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start mt-2">
+                        <div class="text-green-400 mr-4">2</div>
+                        <div>
+                            <span class="text-white">Pose detected with YOLOv8-Pose</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start mt-2">
+                        <div class="text-green-400 mr-4">3</div>
+                        <div>
+                            <span class="text-white">Angles calculated with vector math</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start mt-2">
+                        <div class="text-green-400 mr-4">4</div>
+                        <div>
+                            <span class="text-purple-400">JSON</span> <span class="text-white">response sent with results</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Future Scope -->
+        <div class="mb-20">
+            <h2 class="text-3xl md:text-4xl font-bold mb-12 text-center font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500">
+                The Future of PosePilot
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-gradient-to-br from-blue-500/10 to-purple-500/10 p-8 rounded-2xl border border-white/10">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold">Wearable Integration</h3>
+                    </div>
+                    <p class="text-white/80">We're developing a wristband that gives vibration feedback when you slouch, so you can correct your posture even when immersed in work or gaming.</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-emerald-400/10 to-blue-500/10 p-8 rounded-2xl border border-white/10">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-xl font-bold">Gemini AI Integration</h3>
+                    </div>
+                    <p class="text-white/80">Coming soon: Gemini AI will generate daily reports, personalized posture insights, and voice-based tips through the frontend.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Final CTA -->
+        <div class="text-center mb-20">
+            <div class="morphing-logo w-32 h-32 mx-auto bg-gradient-to-br from-emerald-400 to-blue-500 rounded-2xl shadow-xl shadow-emerald-400/30 flex items-center justify-center mb-8">
+                <div class="text-3xl font-bold text-white font-orbitron">PP</div>
+            </div>
+            <h2 class="text-3xl md:text-4xl font-bold mb-6 font-orbitron bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500">
+                Ready to Transform Your Posture?
+            </h2>
+            <p class="text-xl text-white/80 max-w-2xl mx-auto mb-8">
+                PosePilot is your smart, interactive coach that helps you sit better and feel better, with no extra hardware or complex setup.
+            </p>
+            <button class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-blue-600 rounded-full text-white font-medium shadow-lg hover:shadow-emerald-500/30 transition-all hover:scale-105">
+                Try the Demo
+            </button>
+        </div>
+    </section>
+    
+    <footer class="py-12 border-t border-white/10">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <div class="flex justify-center mb-8">
+                <div class="morphing-logo w-16 h-16 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-xl shadow-lg shadow-emerald-400/20 flex items-center justify-center">
+                    <div class="text-xl font-bold text-white font-orbitron">P</div>
+                </div>
+            </div>
+            <p class="text-white/60 mb-6">© 2023 PosePilot. All rights reserved.</p>
+            <p class="text-white/80 max-w-2xl mx-auto">
+                BitCamp@2025 X Team Pose Pilot. Stay healthy, stay aligned!
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // 3D Background Animation
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set up Three.js scene
+            const canvas = document.getElementById('canvas3d');
+            const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+            
+            // Add lights
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // Create morphing geometry
+            const geometry = new THREE.IcosahedronGeometry(1, 2);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0x10b981,
+                emissive: 0x10b981,
+                emissiveIntensity: 0.2,
+                shininess: 50,
+                transparent: true,
+                opacity: 0.2,
+                wireframe: true
+            });
+            
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                mesh.rotation.x += 0.002;
+                mesh.rotation.y += 0.003;
+                
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Logo morphing animation
+            const logos = document.querySelectorAll('.morphing-logo');
+            
+            logos.forEach(logo => {
+                logo.addEventListener('mouseenter', () => {
+                    gsap.to(logo, {
+                        borderRadius: '50%',
+                        scale: 1.05,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                });
+                
+                logo.addEventListener('mouseleave', () => {
+                    gsap.to(logo, {
+                        borderRadius: '1.5rem',
+                        scale: 1,
+                        duration: 0.5,
+                        ease: 'power2.out'
+                    });
+                });
+            });
+            
+            // Scroll animations
+            gsap.registerPlugin(ScrollTrigger);
+            
+            gsap.utils.toArray('.morphing-logo').forEach(logo => {
+                gsap.from(logo, {
+                    scrollTrigger: {
+                        trigger: logo,
+                        start: 'top 80%',
+                        toggleActions: 'play none none none'
+                    },
+                    opacity: 0,
+                    y: 50,
+                    duration: 1,
+                    ease: 'power2.out'
+                });
+            });
+            
+            // Hero text animation
+            gsap.from('.hero-gradient h1, .hero-gradient p, .hero-gradient button', {
+                opacity: 0,
+                y: 30,
+                duration: 1,
+                stagger: 0.2,
+                ease: 'power2.out'
+            });
+        });
+    </script>
+</body>
+</html>
