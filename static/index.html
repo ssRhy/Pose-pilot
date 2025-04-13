@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PosePilot Pro - AI Posture Tracking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        
+        :root {
+            --neon-blue: #00f7ff;
+            --neon-pink: #ff00f7;
+            --neon-green: #00ff7b;
+            --dark-bg: #0f0f15;
+            --darker-bg: #08080c;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--dark-bg);
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        .logo-text {
+            font-family: 'Press Start 2P', cursive;
+            text-shadow: 0 0 10px #00f7ff, 0 0 20px #00f7ff;
+            letter-spacing: 2px;
+        }
+        .glitch {
+            position: relative;
+        }
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .glitch::before {
+            left: 2px;
+            text-shadow: -2px 0 #ff00f7;
+            clip: rect(24px, 550px, 90px, 0);
+            animation: glitch-anim-1 2s infinite linear alternate-reverse;
+        }
+        .glitch::after {
+            left: -2px;
+            text-shadow: -2px 0 #00f7ff;
+            clip: rect(85px, 550px, 140px, 0);
+            animation: glitch-anim-2 2s infinite linear alternate-reverse;
+        }
+        @keyframes glitch-anim-1 {
+            0% { clip: rect(32px, 9999px, 76px, 0); }
+            25% { clip: rect(8px, 9999px, 44px, 0); }
+            50% { clip: rect(40px, 9999px, 72px, 0); }
+            75% { clip: rect(8px, 9999px, 92px, 0); }
+            100% { clip: rect(48px, 9999px, 98px, 0); }
+        }
+        @keyframes glitch-anim-2 {
+            0% { clip: rect(92px, 9999px, 98px, 0); }
+            25% { clip: rect(0px, 9999px, 80px, 0); }
+            50% { clip: rect(64px, 9999px, 32px, 0); }
+            75% { clip: rect(60px, 9999px, 84px, 0); }
+            100% { clip: rect(48px, 9999px, 98px, 0); }
+        }
+        
+        .neon-border {
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 10px var(--neon-blue), inset 0 0 10px var(--neon-blue);
+        }
+        
+        .neon-text-blue {
+            color: var(--neon-blue);
+            text-shadow: 0 0 5px var(--neon-blue);
+        }
+        
+        .neon-text-pink {
+            color: var(--neon-pink);
+            text-shadow: 0 0 5px var(--neon-pink);
+        }
+        
+        .neon-text-green {
+            color: var(--neon-green);
+            text-shadow: 0 0 5px var(--neon-green);
+        }
+        
+        .glow-box {
+            box-shadow: 0 0 15px rgba(0, 247, 255, 0.5);
+        }
+        
+        .badge {
+            transition: all 0.3s ease;
+        }
+        
+        .badge:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-pink));
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .alert-pulse {
+            animation: alertPulse 1s infinite alternate;
+        }
+        
+        @keyframes alertPulse {
+            from { box-shadow: 0 0 5px var(--neon-pink); }
+            to { box-shadow: 0 0 20px var(--neon-pink); }
+        }
+        
+        #videoFeed {
+            transform: scaleX(-1);
+        }
+        
+        .interactive-card {
+            transition: all 0.3s ease;
+        }
+        
+        .interactive-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 247, 255, 0.3);
+        }
+        
+        .animated-gradient-text {
+            background: linear-gradient(90deg, #00f7ff, #ff00f7, #00ff7b);
+            background-size: 200% auto;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientText 3s linear infinite;
+        }
+        
+        @keyframes gradientText {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+        
+        .performance-badge {
+            background: linear-gradient(45deg, #ff00f7, #00f7ff);
+            color: white;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            margin-right: 8px;
+        }
+        
+        .fps-counter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 10;
+        }
+        
+        .posture-angle {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .angle-indicator {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, #00ff7b, #ff00f7);
+            border-radius: 4px;
+            margin: 10px 0;
+            position: relative;
+        }
+        
+        .angle-marker {
+            position: absolute;
+            width: 2px;
+            height: 15px;
+            background: white;
+            top: -3px;
+        }
+        
+        /* Optimized detection frame rate */
+        .detection-optimized {
+            animation: pulseOptimized 2s infinite;
+        }
+        
+        @keyframes pulseOptimized {
+            0% { box-shadow: 0 0 5px rgba(0, 247, 255, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(0, 247, 255, 0.8); }
+            100% { box-shadow: 0 0 5px rgba(0, 247, 255, 0.5); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <header class="bg-black/50 backdrop-blur-md border-b border-gray-800 py-4 px-6 sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <h1 class="logo-text text-2xl md:text-3xl">PosePilot V1.1</h1>
+                <span class="text-xs bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 rounded-full">AI EDITION</span>
+                <span class="performance-badge">
+                    <i class="fas fa-bolt mr-1"></i> BETA
+                </span>
+            </div>
+            <div class="flex space-x-4">
+                <button id="captureBaselineBtn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-full transition-all duration-300 hidden">
+                    <i class="fas fa-bullseye mr-2"></i>Set Baseline
+                </button>
+                <button id="connectWebcamBtn" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 flex items-center space-x-2 hover:scale-105 transform">
+                    <i class="fas fa-video mr-2"></i>
+                    <span>Connect Webcam</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8 relative z-10">
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Left Column - Video Feed and Stats -->
+            <div class="flex-1">
+                <!-- Video Feed with FPS counter -->
+                <div class="relative bg-gray-900 rounded-xl overflow-hidden neon-border h-96 md:h-[500px] flex items-center justify-center interactive-card detection-optimized">
+                    <div class="fps-counter hidden">
+                        <span id="fpsValue">0</span> FPS
+                    </div>
+                    <video id="videoFeed" class="w-full h-full object-cover hidden"></video>
+                    <canvas id="postureCanvas" class="absolute top-0 left-0 w-full h-full hidden"></canvas>
+                    <div id="videoPlaceholder" class="text-center p-8">
+                        <i class="fas fa-video fa-3x mx-auto text-gray-600 mb-4"></i>
+                        <h3 class="text-xl font-bold text-gray-400 mb-2">Webcam Not Connected</h3>
+                        <p class="text-gray-500 mb-4">Click the "Connect Webcam" button to start posture tracking</p>
+                    </div>
+                </div>
+
+                <!-- Posture Status -->
+                <div class="mt-6 bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 neon-border interactive-card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold neon-text-blue">Posture Status</h2>
+                        <div class="flex items-center space-x-2">
+                            <span id="trackingStatus" class="text-sm bg-gray-700 px-3 py-1 rounded-full">OFF</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="trackingToggle" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="postureFeedback" class="text-center py-8">
+                        <div id="perfectPosture" class="hidden">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-check-circle fa-3x text-green-500 mb-4"></i>
+                                <h3 class="text-2xl font-bold neon-text-green">Perfect Posture!</h3>
+                                <p class="text-gray-300 mt-2">Your posture matches the baseline</p>
+                            </div>
+                        </div>
+                        
+                        <div id="slouchingAlert" class="hidden">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-exclamation-triangle fa-3x text-yellow-500 mb-4"></i>
+                                <h3 class="text-2xl font-bold text-yellow-400">Posture Deviation</h3>
+                                <p class="text-gray-300 mt-2">Your posture differs from the baseline</p>
+                                <div id="postureTips" class="mt-4 text-sm text-gray-300 max-w-md mx-auto hidden"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="noDetection" class="">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-user fa-3x text-gray-500 mb-4"></i>
+                                <h3 class="text-2xl font-bold text-gray-400">No Detection</h3>
+                                <p class="text-gray-500 mt-2">Enable tracking to monitor your posture</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <h3 class="font-bold mb-2 neon-text-blue">Posture Metrics</h3>
+                        <div class="bg-gray-900/50 rounded-lg p-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div class="text-sm text-gray-300 mb-1">Neck Angle</div>
+                                    <div class="posture-angle neon-text-blue" id="neckAngle">--°</div>
+                                    <div class="angle-indicator">
+                                        <div class="angle-marker" id="neckAngleMarker" style="left: 50%;"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-300 mb-1">Back Angle</div>
+                                    <div class="posture-angle neon-text-green" id="backAngle">--°</div>
+                                    <div class="angle-indicator">
+                                        <div class="angle-marker" id="backAngleMarker" style="left: 50%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-700">
+                                <span class="text-sm text-gray-300">Current Score</span>
+                                <span id="postureScore" class="font-bold neon-text-green">--</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">Deviation Duration</span>
+                                <span id="deviationDuration" class="font-bold">0m 0s</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Posture Graph -->
+                <div class="mt-6 bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 neon-border interactive-card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold neon-text-blue">Posture History</h2>
+                        <div class="flex space-x-2">
+                            <button class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition-colors">Day</button>
+                            <button class="text-xs bg-blue-600 px-3 py-1 rounded-full">Week</button>
+                            <button class="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition-colors">Month</button>
+                        </div>
+                    </div>
+                    <div class="bg-gray-900/50 rounded-lg h-48">
+                        <canvas id="postureHistoryChart" class="w-full h-full"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column - Stats and Alerts -->
+            <div class="w-full lg:w-80 flex-shrink-0">
+                <!-- User Stats -->
+                <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 neon-border mb-6 interactive-card">
+                    <h2 class="text-xl font-bold neon-text-blue mb-4">Session Stats</h2>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm text-gray-300">Good Posture Time</span>
+                                <span id="goodPostureTime" class="font-bold">0m 0s</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                <div id="goodPostureProgress" class="bg-blue-500 h-2.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm text-gray-300">Bad Posture Time</span>
+                                <span id="badPostureTime" class="font-bold">0m 0s</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                <div id="badPostureProgress" class="bg-purple-500 h-2.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-gray-700">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-300">Session Duration</span>
+                                <span id="sessionTime" class="font-bold">0m 0s</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-300">Alerts Triggered</span>
+                            <span id="alertsCount" class="font-bold">0</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Badges Section -->
+                    <div class="mt-6 pt-4 border-t border-gray-700">
+                        <h3 class="text-sm font-bold neon-text-blue mb-3">Your Badges</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <div class="badge bg-gradient-to-r from-blue-600 to-blue-400 text-white px-3 py-1 rounded-full text-xs flex items-center">
+                                <i class="fas fa-user-clock mr-1"></i> First Session
+                            </div>
+                            <div id="postureMasterBadge" class="badge bg-gray-700 text-gray-500 px-3 py-1 rounded-full text-xs flex items-center hidden">
+                                <i class="fas fa-crown mr-1"></i> Posture Master
+                            </div>
+                            <div id="streakBadge" class="badge bg-gray-700 text-gray-500 px-3 py-1 rounded-full text-xs flex items-center hidden">
+                                <i class="fas fa-fire mr-1"></i> 3-Day Streak
+                            </div>
+                            <div id="fastTrackerBadge" class="badge bg-gray-700 text-gray-500 px-3 py-1 rounded-full text-xs flex items-center hidden">
+                                <i class="fas fa-tachometer-alt mr-1"></i> Fast Tracker
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Alert Box -->
+                <div id="alertBox" class="bg-red-900/30 backdrop-blur-sm rounded-xl p-4 border border-red-500 hidden alert-pulse mb-6">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-exclamation-triangle fa-lg text-red-400"></i>
+                        <div>
+                            <h3 class="font-bold text-red-300">Posture Alert!</h3>
+                            <p class="text-xs text-red-400">You've maintained bad posture for <span id="alertDuration">0</span> minutes</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Baseline Info -->
+                <div id="baselineInfo" class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 neon-border mb-6 interactive-card hidden">
+                    <h2 class="text-xl font-bold neon-text-blue mb-2">Baseline Posture</h2>
+                    <p class="text-sm text-gray-300 mb-4">Captured on <span id="baselineDate">--</span></p>
+                    
+                    <div class="bg-gray-900/50 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm text-gray-300">Neck Angle</span>
+                            <span id="baselineNeckAngle" class="font-bold">--°</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-300">Back Angle</span>
+                            <span id="baselineBackAngle" class="font-bold">--°</span>
+                        </div>
+                    </div>
+                    
+                    <button id="resetBaselineBtn" class="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-full transition-colors">
+                        <i class="fas fa-sync-alt mr-2"></i>Reset Baseline
+                    </button>
+                </div>
+                
+                <!-- Gaming Setup Tips -->
+                <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 neon-border mb-6 interactive-card">
+                    <h3 class="text-sm font-bold neon-text-blue mb-2">Gaming Setup Tips</h3>
+                    <div class="text-xs text-gray-300 space-y-2">
+                        <div class="flex items-start">
+                            <i class="fas fa-chair text-blue-400 mr-2 mt-1"></i>
+                            <span>Use an ergonomic chair with lumbar support</span>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-desktop text-purple-400 mr-2 mt-1"></i>
+                            <span>Position monitor at eye level, about arm's length away</span>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-keyboard text-green-400 mr-2 mt-1"></i>
+                            <span>Keep keyboard and mouse at elbow height</span>
+                        </div>
+                        <div class="flex items-start">
+                            <i class="fas fa-lightbulb text-yellow-400 mr-2 mt-1"></i>
+                            <span>Ensure proper lighting to reduce eye strain</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Tips -->
+                <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 neon-border interactive-card">
+                    <h3 class="text-sm font-bold neon-text-blue mb-2">Posture Tip</h3>
+                    <p class="text-xs text-gray-300" id="postureTip">Keep your screen at eye level to prevent neck strain.</p>
+                    <button id="nextTipBtn" class="mt-2 text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition-colors w-full">
+                        <i class="fas fa-random mr-1"></i>Next Tip
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-black/50 border-t border-gray-800 py-6 mt-12">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="text-center md:text-left mb-4 md:mb-0">
+                    <p class="text-gray-500 text-sm">PosePilot Pro &copy; 2025 - AI-Powered Posture Tracking</p>
+                    <p class="text-gray-600 text-xs mt-1">Powered by YOLOv8, Flask, and TensorRT for maximum performance</p>
+                </div>
+                <div class="flex flex-col items-center md:items-end">
+                    <p class="text-gray-400 text-sm mb-1">Created by Team PosePilot</p>
+                    <div class="flex space-x-3">
+                        <span class="text-xs text-gray-500">Sai</span>
+                        <span class="text-xs text-gray-500">Chan</span>
+                        <span class="text-xs text-gray-500">Pure</span>
+                        <span class="text-xs text-gray-500">Vivek</span>
+                    </div>
+                    <p class="text-gray-600 text-xs mt-2">@ Bitcamp 2025</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Audio Elements -->
+    <audio id="positiveSound" src="https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3" preload="auto"></audio>
+    <audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" preload="auto"></audio>
+
+    <script>
+        // DOM Elements
+        const connectWebcamBtn = document.getElementById('connectWebcamBtn');
+        const captureBaselineBtn = document.getElementById('captureBaselineBtn');
+        const resetBaselineBtn = document.getElementById('resetBaselineBtn');
+        const videoFeed = document.getElementById('videoFeed');
+        const postureCanvas = document.getElementById('postureCanvas');
+        const videoPlaceholder = document.getElementById('videoPlaceholder');
+        const trackingToggle = document.getElementById('trackingToggle');
+        const trackingStatus = document.getElementById('trackingStatus');
+        const nextTipBtn = document.getElementById('nextTipBtn');
+        const postureTip = document.getElementById('postureTip');
+        const fpsValue = document.getElementById('fpsValue');
+        const fpsCounter = document.querySelector('.fps-counter');
+        const postureTips = document.getElementById('postureTips');
+        
+        // Posture feedback elements
+        const perfectPosture = document.getElementById('perfectPosture');
+        const slouchingAlert = document.getElementById('slouchingAlert');
+        const noDetection = document.getElementById('noDetection');
+        
+        // Stats elements
+        const goodPostureTime = document.getElementById('goodPostureTime');
+        const badPostureTime = document.getElementById('badPostureTime');
+        const goodPostureProgress = document.getElementById('goodPostureProgress');
+        const badPostureProgress = document.getElementById('badPostureProgress');
+        const sessionTime = document.getElementById('sessionTime');
+        const alertsCount = document.getElementById('alertsCount');
+        const postureScore = document.getElementById('postureScore');
+        const deviationDuration = document.getElementById('deviationDuration');
+        
+        // Angle indicators
+        const neckAngle = document.getElementById('neckAngle');
+        const backAngle = document.getElementById('backAngle');
+        const neckAngleMarker = document.getElementById('neckAngleMarker');
+        const backAngleMarker = document.getElementById('backAngleMarker');
+        
+        // Baseline info
+        const baselineInfo = document.getElementById('baselineInfo');
+        const baselineDate = document.getElementById('baselineDate');
+        const baselineNeckAngle = document.getElementById('baselineNeckAngle');
+        const baselineBackAngle = document.getElementById('baselineBackAngle');
+        
+        // Alert box
+        const alertBox = document.getElementById('alertBox');
+        const alertDuration = document.getElementById('alertDuration');
+        
+        // Badges
+        const postureMasterBadge = document.getElementById('postureMasterBadge');
+        const streakBadge = document.getElementById('streakBadge');
+        const fastTrackerBadge = document.getElementById('fastTrackerBadge');
+        
+        // Audio elements
+        const positiveSound = document.getElementById('positiveSound');
+        const alertSound = document.getElementById('alertSound');
+        
+        // Posture tips
+        const postureTipsList = [
+            "Keep your ears aligned with your shoulders for optimal neck posture.",
+            "Your screen should be at eye level to prevent neck strain.",
+            "Take a 5-minute break every hour to stretch and move around.",
+            "Keep your feet flat on the floor with knees at a 90-degree angle.",
+            "Your elbows should be close to your body at a 90-120 degree angle.",
+            "Position your keyboard and mouse so your wrists are straight.",
+            "Relax your shoulders - they shouldn't be hunched or elevated.",
+            "The top of your monitor should be at or slightly below eye level.",
+            "Use a lumbar support or rolled towel to maintain your spine's natural curve.",
+            "Avoid crossing your legs while sitting to maintain proper circulation."
+        ];
+        
+        // State variables
+        let isWebcamConnected = false;
+        let isTrackingActive = false;
+        let sessionStartTime = null;
+        let trackingInterval = null;
+        let postureCheckInterval = null;
+        let currentTipIndex = 0;
+        let lastFrameTime = 0;
+        let fps = 0;
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+        let lastDetectionTime = 0;
+        let detectionInterval = 100; // Start with 10 FPS detection
+        
+        // Posture tracking data
+        let postureData = {
+            goodPostureSeconds: 0,
+            badPostureSeconds: 0,
+            continuousBadPostureSeconds: 0,
+            alertsTriggered: 0,
+            baseline: null,
+            baselineTimestamp: null,
+            baselineNeckAngle: null,
+            baselineBackAngle: null,
+            lastDetectionTime: 0
+        };
+        
+        // Initialize posture history chart
+        function initPostureChart() {
+            const ctx = document.getElementById('postureHistoryChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [
+                        {
+                            label: 'Good Posture',
+                            data: [45, 60, 75, 90, 120, 90, 0],
+                            borderColor: '#00ff7b',
+                            backgroundColor: 'rgba(0, 255, 123, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Bad Posture',
+                            data: [15, 30, 45, 30, 60, 90, 0],
+                            borderColor: '#ff00f7',
+                            backgroundColor: 'rgba(255, 0, 247, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#6b7280'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                callback: function(value) {
+                                    return value + 'min';
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 0
+                        }
+                    }
+                }
+            });
+            
+            return chart;
+        }
+        
+        const postureChart = initPostureChart();
+        
+        // Show random posture tip
+        function showRandomTip() {
+            postureTip.textContent = postureTipsList[currentTipIndex];
+            currentTipIndex = (currentTipIndex + 1) % postureTipsList.length;
+        }
+        
+        // Calculate FPS
+        function calculateFPS() {
+            const now = performance.now();
+            frameCount++;
+            
+            if (now >= lastFpsUpdate + 1000) {
+                fps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+                fpsValue.textContent = fps;
+                lastFpsUpdate = now;
+                frameCount = 0;
+                
+                // Update performance indicator color based on FPS
+                if (fps >= 30) {
+                    fpsValue.style.color = '#00ff7b';
+                    fastTrackerBadge.classList.remove('hidden');
+                    fastTrackerBadge.classList.remove('bg-gray-700', 'text-gray-500');
+                    fastTrackerBadge.classList.add('bg-gradient-to-r', 'from-green-600', 'to-blue-500', 'text-white');
+                } else if (fps >= 15) {
+                    fpsValue.style.color = '#ffcc00';
+                } else {
+                    fpsValue.style.color = '#ff3333';
+                }
+                
+                // Dynamically adjust detection interval based on FPS
+                if (fps > 30) {
+                    detectionInterval = 50; // ~20 FPS detection
+                } else if (fps > 15) {
+                    detectionInterval = 100; // ~10 FPS detection
+                } else {
+                    detectionInterval = 200; // ~5 FPS detection
+                }
+            }
+            
+            requestAnimationFrame(calculateFPS);
+        }
+        
+        // Connect webcam
+        connectWebcamBtn.addEventListener('click', async () => {
+            if (isWebcamConnected) {
+                disconnectWebcam();
+                return;
+            }
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 60 }
+                    } 
+                });
+                
+                videoFeed.srcObject = stream;
+                videoFeed.classList.remove('hidden');
+                videoPlaceholder.classList.add('hidden');
+                fpsCounter.classList.remove('hidden');
+                isWebcamConnected = true;
+                
+                connectWebcamBtn.innerHTML = `
+                    <i class="fas fa-video-slash mr-2"></i>
+                    <span>Disconnect Webcam</span>
+                `;
+                
+                // Show capture baseline button if no baseline exists
+                if (!postureData.baseline) {
+                    captureBaselineBtn.classList.remove('hidden');
+                }
+                
+                // Start session timer
+                sessionStartTime = new Date();
+                updateSessionTime();
+                
+                // Start posture tracking
+                toggleTracking(true);
+                trackingToggle.checked = true;
+                
+                // Play video to get frames
+                videoFeed.play();
+                
+                // Start FPS calculation
+                lastFpsUpdate = performance.now();
+                calculateFPS();
+                
+                // Start processing frames
+                processVideoFrame();
+                
+            } catch (error) {
+                console.error('Error accessing webcam:', error);
+                alert('Could not access the webcam. Please ensure you have granted permission.');
+            }
+        });
+        
+        // Process video frames for posture detection
+        function processVideoFrame() {
+            if (!isWebcamConnected || !isTrackingActive) return;
+            
+            // Only process frames if enough time has passed since last detection
+            const now = Date.now();
+            if (now - lastDetectionTime < detectionInterval) {
+                requestAnimationFrame(processVideoFrame);
+                return;
+            }
+            
+            // Capture frame and send to server for processing
+            captureFrameAndDetectPosture();
+            
+            // Continue processing frames
+            requestAnimationFrame(processVideoFrame);
+        }
+        
+        // Capture frame and detect posture
+        async function captureFrameAndDetectPosture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoFeed.videoWidth;
+            canvas.height = videoFeed.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoFeed, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64 with quality adjustment for faster transfer
+            const imageData = canvas.toDataURL('image/jpeg', 0.7);
+            
+            try {
+                lastDetectionTime = Date.now();
+                
+                const response = await fetch('/detect_posture', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: imageData,
+                        baseline: postureData.baseline
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Update UI based on posture detection
+                updatePostureUI(data);
+                
+            } catch (error) {
+                console.error('Error detecting posture:', error);
+            }
+        }
+        
+        // Update UI based on posture detection results
+        function updatePostureUI(data) {
+            // Show the annotated image if available
+            if (data.annotated_image) {
+                postureCanvas.width = videoFeed.videoWidth;
+                postureCanvas.height = videoFeed.videoHeight;
+                
+                const img = new Image();
+                img.onload = function() {
+                    const ctx = postureCanvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, postureCanvas.width, postureCanvas.height);
+                    postureCanvas.classList.remove('hidden');
+                };
+                img.src = data.annotated_image;
+            }
+            
+            // Update posture status
+            showPostureFeedback(data.posture, data.report);
+            
+            // Update angle displays
+            if (data.angles?.neck) {
+                neckAngle.textContent = `${Math.round(data.angles.neck)}°`;
+                // Position marker on indicator (0-90° range)
+                const neckPos = Math.min(Math.max(data.angles.neck / 90, 0), 1) * 100;
+                neckAngleMarker.style.left = `${neckPos}%`;
+                
+                // Change color based on angle
+                if (data.angles.neck > 30) {
+                    neckAngle.classList.remove('neon-text-blue');
+                    neckAngle.classList.add('neon-text-pink');
+                } else {
+                    neckAngle.classList.remove('neon-text-pink');
+                    neckAngle.classList.add('neon-text-blue');
+                }
+            }
+            
+            if (data.angles?.avg_body) {
+                backAngle.textContent = `${Math.round(data.angles.avg_body)}°`;
+                // Position marker on indicator (0-90° range)
+                const backPos = Math.min(Math.max(data.angles.avg_body / 90, 0), 1) * 100;
+                backAngleMarker.style.left = `${backPos}%`;
+                
+                // Change color based on angle
+                if (data.angles.avg_body > 30) {
+                    backAngle.classList.remove('neon-text-green');
+                    backAngle.classList.add('neon-text-pink');
+                } else {
+                    backAngle.classList.remove('neon-text-pink');
+                    backAngle.classList.add('neon-text-green');
+                }
+            }
+            
+            // Update posture stats
+            if (data.posture === 'good') {
+                postureData.goodPostureSeconds += detectionInterval / 1000;
+                postureData.continuousBadPostureSeconds = 0;
+                
+                // Hide alert if posture improves
+                if (postureData.continuousBadPostureSeconds === 0) {
+                    alertBox.classList.add('hidden');
+                }
+                
+                // Check for posture master badge
+                if (postureData.goodPostureSeconds > 300 && !postureMasterBadge.classList.contains('hidden')) {
+                    postureMasterBadge.classList.remove('hidden');
+                    postureMasterBadge.classList.remove('bg-gray-700', 'text-gray-500');
+                    postureMasterBadge.classList.add('bg-gradient-to-r', 'from-yellow-600', 'to-yellow-400', 'text-white');
+                }
+            } else if (data.posture === 'bad') {
+                postureData.badPostureSeconds += detectionInterval / 1000;
+                postureData.continuousBadPostureSeconds += detectionInterval / 1000;
+                
+                // Show alert after 3 minutes of continuous bad posture
+                if (postureData.continuousBadPostureSeconds >= 180) {
+                    alertDuration.textContent = Math.floor(postureData.continuousBadPostureSeconds / 60);
+                    alertBox.classList.remove('hidden');
+                    
+                    // Only play sound and count alert once per continuous period
+                    if (postureData.continuousBadPostureSeconds === 180) {
+                        postureData.alertsTriggered++;
+                        alertSound.play();
+                    }
+                }
+            }
+            
+            // Calculate posture score (0-100)
+            const totalSeconds = postureData.goodPostureSeconds + postureData.badPostureSeconds;
+            const score = totalSeconds > 0 ? 
+                Math.floor((postureData.goodPostureSeconds / totalSeconds) * 100) : 0;
+            
+            postureScore.textContent = score;
+            
+            // Update stats display
+            updateStatsDisplay();
+        }
+        
+        // Show posture feedback with optional tips
+        function showPostureFeedback(state, report) {
+            perfectPosture.classList.add('hidden');
+            slouchingAlert.classList.add('hidden');
+            noDetection.classList.add('hidden');
+            
+            switch(state) {
+                case 'good':
+                    perfectPosture.classList.remove('hidden');
+                    postureTips.classList.add('hidden');
+                    break;
+                case 'bad':
+                    slouchingAlert.classList.remove('hidden');
+                    if (report) {
+                        postureTips.innerHTML = report;
+                        postureTips.classList.remove('hidden');
+                    }
+                    break;
+                default:
+                    noDetection.classList.remove('hidden');
+                    postureTips.classList.add('hidden');
+                    break;
+            }
+        }
+        
+        // Update stats display
+        function updateStatsDisplay() {
+            // Good posture time
+            const goodMinutes = Math.floor(postureData.goodPostureSeconds / 60);
+            const goodSeconds = Math.floor(postureData.goodPostureSeconds % 60);
+            goodPostureTime.textContent = `${goodMinutes}m ${goodSeconds}s`;
+            
+            // Bad posture time
+            const badMinutes = Math.floor(postureData.badPostureSeconds / 60);
+            const badSeconds = Math.floor(postureData.badPostureSeconds % 60);
+            badPostureTime.textContent = `${badMinutes}m ${badSeconds}s`;
+            
+            // Deviation duration
+            const devMinutes = Math.floor(postureData.continuousBadPostureSeconds / 60);
+            const devSeconds = Math.floor(postureData.continuousBadPostureSeconds % 60);
+            deviationDuration.textContent = `${devMinutes}m ${devSeconds}s`;
+            
+            // Progress bars
+            const totalSeconds = postureData.goodPostureSeconds + postureData.badPostureSeconds;
+            if (totalSeconds > 0) {
+                goodPostureProgress.style.width = `${(postureData.goodPostureSeconds / totalSeconds) * 100}%`;
+                badPostureProgress.style.width = `${(postureData.badPostureSeconds / totalSeconds) * 100}%`;
+            }
+            
+            // Alerts count
+            alertsCount.textContent = postureData.alertsTriggered;
+            
+            // Update chart data (simplified for demo)
+            const chartData = postureChart.data.datasets[0].data;
+            const badChartData = postureChart.data.datasets[1].data;
+            
+            // Update current day (Saturday for demo)
+            chartData[6] = Math.floor(postureData.goodPostureSeconds / 60);
+            badChartData[6] = Math.floor(postureData.badPostureSeconds / 60);
+            
+            postureChart.update();
+        }
+        
+        // Capture baseline posture
+        captureBaselineBtn.addEventListener('click', async () => {
+            if (!isWebcamConnected) return;
+            
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = videoFeed.videoWidth;
+                canvas.height = videoFeed.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(videoFeed, 0, 0, canvas.width, canvas.height);
+                
+                const imageData = canvas.toDataURL('image/jpeg', 0.7); // Compressed for faster transfer
+                
+                const response = await fetch('/capture_baseline', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: imageData
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Store baseline data
+                    postureData.baseline = data.baseline;
+                    postureData.baselineTimestamp = new Date().toISOString();
+                    postureData.baselineNeckAngle = data.angles?.neck;
+                    postureData.baselineBackAngle = data.angles?.avg_body;
+                    
+                    // Update UI
+                    baselineDate.textContent = new Date(postureData.baselineTimestamp).toLocaleString();
+                    baselineNeckAngle.textContent = `${postureData.baselineNeckAngle}°`;
+                    baselineBackAngle.textContent = `${postureData.baselineBackAngle}°`;
+                    
+                    // Show baseline info
+                    baselineInfo.classList.remove('hidden');
+                    captureBaselineBtn.classList.add('hidden');
+                    
+                    // Play success sound
+                    positiveSound.play();
+                } else {
+                    alert('Failed to capture baseline: ' + (data.error || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                console.error('Error capturing baseline:', error);
+                alert('Failed to capture baseline posture. Please try again.');
+            }
+        });
+        
+        // Reset baseline posture
+        resetBaselineBtn.addEventListener('click', () => {
+            postureData.baseline = null;
+            postureData.baselineTimestamp = null;
+            postureData.baselineNeckAngle = null;
+            postureData.baselineBackAngle = null;
+            
+            // Update UI
+            baselineInfo.classList.add('hidden');
+            captureBaselineBtn.classList.remove('hidden');
+        });
+        
+        // Toggle tracking
+        trackingToggle.addEventListener('change', function() {
+            toggleTracking(this.checked);
+        });
+        
+        function toggleTracking(active) {
+            isTrackingActive = active;
+            
+            if (active) {
+                trackingStatus.textContent = 'ON';
+                trackingStatus.classList.remove('bg-gray-700');
+                trackingStatus.classList.add('bg-green-600');
+                
+                // Start posture checking
+                if (isWebcamConnected) {
+                    processVideoFrame();
+                }
+                
+            } else {
+                trackingStatus.textContent = 'OFF';
+                trackingStatus.classList.remove('bg-green-600');
+                trackingStatus.classList.add('bg-gray-700');
+            }
+        }
+        
+        // Disconnect webcam
+        function disconnectWebcam() {
+            if (videoFeed.srcObject) {
+                videoFeed.srcObject.getTracks().forEach(track => track.stop());
+                videoFeed.srcObject = null;
+            }
+            
+            videoFeed.classList.add('hidden');
+            postureCanvas.classList.add('hidden');
+            videoPlaceholder.classList.remove('hidden');
+            fpsCounter.classList.add('hidden');
+            isWebcamConnected = false;
+            
+            connectWebcamBtn.innerHTML = `
+                <i class="fas fa-video mr-2"></i>
+                <span>Connect Webcam</span>
+            `;
+            
+            // Hide baseline button
+            captureBaselineBtn.classList.add('hidden');
+            
+            // Stop tracking if active
+            if (isTrackingActive) {
+                toggleTracking(false);
+                trackingToggle.checked = false;
+            }
+            
+            // Reset session timer
+            sessionStartTime = null;
+            sessionTime.textContent = '0m 0s';
+        }
+        
+        // Update session time
+        function updateSessionTime() {
+            if (!sessionStartTime) return;
+            
+            const now = new Date();
+            const diffSeconds = Math.floor((now - sessionStartTime) / 1000);
+            const minutes = Math.floor(diffSeconds / 60);
+            const seconds = diffSeconds % 60;
+            
+            sessionTime.textContent = `${minutes}m ${seconds}s`;
+            
+            // Check for streak badge (demo purposes)
+            if (minutes >= 5 && !streakBadge.classList.contains('hidden')) {
+                streakBadge.classList.remove('hidden');
+                streakBadge.classList.remove('bg-gray-700', 'text-gray-500');
+                streakBadge.classList.add('bg-gradient-to-r', 'from-orange-600', 'to-red-500', 'text-white');
+            }
+            
+            setTimeout(updateSessionTime, 1000);
+        }
+        
+        // Next tip button
+        nextTipBtn.addEventListener('click', showRandomTip);
+        
+        // Initialize with a random tip
+        showRandomTip();
+    </script>
+</body>
+</html>
