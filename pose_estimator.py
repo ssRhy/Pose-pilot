@@ -9,6 +9,10 @@
 from ultralytics import YOLO
 import numpy as np
 import cv2
+import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PoseEstimator:
     """
@@ -19,8 +23,20 @@ class PoseEstimator:
       13=left_knee,14=right_knee,15=left_ankle,16=right_ankle
     """
 
-    def __init__(self):
-        self.model = YOLO("yolov8n-pose.pt")
+    def __init__(self, model_path="yolov8n-pose.pt"):
+        # Try to handle network issues gracefully
+        try:
+            if os.path.exists(model_path):
+                logger.info(f"Loading local pose model from {model_path}")
+                self.model = YOLO(model_path)
+            else:
+                # If local file doesn't exist and network connectivity is an issue
+                # Use fallback or raise clear error
+                logger.warning(f"Model file {model_path} not found. Attempting to download...")
+                self.model = YOLO(model_path)
+        except Exception as e:
+            logger.error(f"Failed to load pose model: {e}")
+            raise RuntimeError(f"Could not load pose model: {e}. Please check network connectivity or download the model manually.")
 
     def get_pose(self, frame):
         """
