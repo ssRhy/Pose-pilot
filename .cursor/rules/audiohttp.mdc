@@ -1,0 +1,26 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+百度TTS API → 生成音频 → HTTP服务器 → 音箱请求/推送 → 实时播放
+
+网络音箱支持：
+HTTP
+http发送方式POST，发送地址http://192.168.4.1/V3（填入设备ip）
+
+
+百度TTS API服务: 已实现在当前代码中 (generate_audio 函数)
+HTTP音频服务器: 需要新增，用于向网络音箱发送音频
+推送服务: 需要新增，将生成的音频推送到网络音箱
+音箱交互模块: 需要新增，负责与特定IP的网络音箱通信
+
+
+
+
+
+
+
+
+
+

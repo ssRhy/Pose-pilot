@@ -1,13 +1,11 @@
 '''
 # Smart Risk Detector Flask App
 # This Flask app provides endpoints for posture detection using YOLOv8 and pose estimation.
-# It also integrates with Baidu Wenxin Yiyan API for generating posture reports and Baidu TTS for audio.
+# It also integrates with Baidu Wenxin Yiyan API for generating posture reports.
 '''
-from dotenv import load_dotenv
-load_dotenv()
+
 
 # 导入 RTSP 相关模块
-
 import threading
 import queue
 import os
@@ -16,9 +14,10 @@ import time
 import cv2
 import numpy as np
 import requests
-import urllib.parse
 import json
 import logging
+import sys
+import io
 
 from flask import Flask, request, jsonify, send_from_directory, redirect, url_for
 import matplotlib
@@ -26,13 +25,14 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 plt.plot([0, 1], [0, 1])
 plt.savefig('test.png')
+
 # Import your custom modules
 from yolo_detector import YOLODetector
 from anomaly_detector import AnomalyDetector
-
-# 添加简单RTSP测试功能
 from ultralytics import YOLO
-from PIL import Image, ImageDraw, ImageFont
+
+# 导入IP音箱模块
+from speaker.ip_speaker import send_tts
 
 # Configure logging
 logging.basicConfig(
@@ -41,155 +41,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Fix console encoding for Windows
+if sys.platform == 'win32':
+    import codecs
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer)
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer)
+
 ########################################
 # 1) Flask App Setup
 ########################################
 
 app = Flask(__name__, static_folder='static')
-
-# 中文标签映射字典
-CHINESE_LABELS = {
-    'person': '人',
-    'bicycle': '自行车',
-    'car': '汽车',
-    'motorcycle': '摩托车',
-    'airplane': '飞机',
-    'bus': '公交车',
-    'train': '火车',
-    'truck': '卡车',
-    'boat': '船',
-    'traffic light': '红绿灯',
-    'fire hydrant': '消防栓',
-    'stop sign': '停止标志',
-    'parking meter': '停车计时器',
-    'bench': '长椅',
-    'bird': '鸟',
-    'cat': '猫',
-    'dog': '狗',
-    'horse': '马',
-    'sheep': '羊',
-    'cow': '牛',
-    'elephant': '大象',
-    'bear': '熊',
-    'zebra': '斑马',
-    'giraffe': '长颈鹿',
-}
-
-# 简单RTSP测试队列和线程控制变量
-simple_rtsp_frame_queue = queue.Queue(maxsize=1)
-simple_rtsp_thread_running = False
-simple_rtsp_thread = None
-
-def put_chinese_text(img, text, pos, color=(0, 255, 0)):
-    """在图片上绘制中文文本"""
-    img_pil = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-    font_size = int(min(img.shape[0], img.shape[1]) / 30)  # 自适应字体大小
-    try:
-        font = ImageFont.truetype("simhei.ttf", font_size)  # 使用系统的黑体
-    except:
-        # 如果找不到系统字体，使用OpenCV默认字体
-        cv2.putText(img, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        return img
-    
-    draw = ImageDraw.Draw(img_pil)
-    draw.text(pos, text, font=font, fill=color[::-1])  # OpenCV使用BGR，PIL使用RGB
-    return cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
-
-def simple_rtsp_thread(rtsp_url):
-    """简单RTSP检测线程，使用YOLOv8进行目标检测"""
-    global simple_rtsp_thread_running
-    
-    print(f"简单RTSP线程启动，连接到: {rtsp_url}")
-    
-    try:
-        # 加载YOLOv8模型
-        model = YOLO("yolov8n-pose.pt")
-        
-        # 设置RTSP连接
-        cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-        
-        if not cap.isOpened():
-            print(f"错误: 无法连接到RTSP流 {rtsp_url}")
-            simple_rtsp_thread_running = False
-            return
-        
-        frame_count = 0
-        start_time = time.time()
-        fps_update_interval = 30
-        
-        while simple_rtsp_thread_running:
-            # 读取一帧
-            ret, frame = cap.read()
-            
-            # 如果读取失败
-            if not ret:
-                print("帧读取失败，尝试重新连接...")
-                cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
-                time.sleep(0.5)
-                continue
-            
-            frame_count += 1
-            
-            # 使用YOLOv8进行目标检测
-            results = model(frame)
-            
-            # 获取原始帧的副本
-            display_frame = frame.copy()
-            
-            # 在帧上绘制检测结果
-            for r in results:
-                boxes = r.boxes
-                for box in boxes:
-                    # 获取边界框坐标
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    # 获取置信度
-                    conf = float(box.conf[0])
-                    # 获取类别
-                    cls = int(box.cls[0])
-                    # 获取类别名称
-                    name = r.names[cls]
-                    # 转换为中文名称
-                    chinese_name = CHINESE_LABELS.get(name, name)
-                    
-                    # 绘制边界框
-                    cv2.rectangle(display_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    # 添加中文标签
-                    label = f"{chinese_name} {conf:.2f}"
-                    display_frame = put_chinese_text(display_frame, label, (x1, y1-10))
-            
-            # 计算并显示FPS
-            if frame_count % fps_update_interval == 0:
-                end_time = time.time()
-                fps = fps_update_interval / (end_time - start_time)
-                start_time = end_time
-                # 在帧上添加FPS文本
-                display_frame = put_chinese_text(display_frame, f"FPS: {fps:.1f}", (20, 40))
-            
-            # 将处理后的帧放入队列
-            try:
-                # 转换为JPEG格式
-                _, buffer = cv2.imencode('.jpg', display_frame)
-                
-                # 更新帧队列
-                if simple_rtsp_frame_queue.full():
-                    simple_rtsp_frame_queue.get()
-                simple_rtsp_frame_queue.put(buffer)
-            except Exception as e:
-                print(f"处理RTSP帧时出错: {e}")
-            
-            # 短暂休眠以减少CPU使用率
-            time.sleep(0.01)
-    
-    except Exception as e:
-        print(f"简单RTSP线程错误: {e}")
-    
-    finally:
-        # 释放资源
-        if 'cap' in locals():
-            cap.release()
-        simple_rtsp_thread_running = False
-        print("简单RTSP线程已停止")
 
 # Instantiate YOLO, Pose, and Anomaly modules
 detector = YOLODetector(
@@ -255,68 +117,7 @@ rtsp_thread = None
 # Create the anomaly detector instance
 anomaly_detector = AnomalyDetector()
 
-# 添加简单RTSP接口
-@app.route("/simple_rtsp/start", methods=["POST"])
-def start_simple_rtsp():
-    """启动简单RTSP检测线程"""
-    global simple_rtsp_thread, simple_rtsp_thread_running
-    
-    # 如果线程已经在运行，返回成功
-    if simple_rtsp_thread_running and simple_rtsp_thread and simple_rtsp_thread.is_alive():
-        return jsonify({"success": True, "message": "简单RTSP检测已在运行"})
-    
-    # 获取RTSP URL
-    data = request.get_json()
-    rtsp_url = data.get("rtsp_url", "rtsp://10.148.165.1:8554/live")
-    
-    # 启动线程
-    simple_rtsp_thread_running = True
-    simple_rtsp_thread = threading.Thread(target=simple_rtsp_thread, args=(rtsp_url,))
-    simple_rtsp_thread.daemon = True
-    simple_rtsp_thread.start()
-    
-    return jsonify({"success": True, "message": "简单RTSP检测已启动"})
-
-@app.route("/simple_rtsp/stop", methods=["POST"])
-def stop_simple_rtsp():
-    """停止简单RTSP检测线程"""
-    global simple_rtsp_thread_running
-    
-    if simple_rtsp_thread_running:
-        simple_rtsp_thread_running = False
-        # 等待线程结束
-        if simple_rtsp_thread:
-            simple_rtsp_thread.join(timeout=5.0)
-        
-        # 清空队列
-        while not simple_rtsp_frame_queue.empty():
-            simple_rtsp_frame_queue.get()
-        
-        return jsonify({"success": True, "message": "简单RTSP检测已停止"})
-    else:
-        return jsonify({"success": True, "message": "简单RTSP检测未运行"})
-
-@app.route("/simple_rtsp/status", methods=["GET"])
-def simple_rtsp_status():
-    """获取简单RTSP检测状态"""
-    return jsonify({
-        "running": simple_rtsp_thread_running and simple_rtsp_thread and simple_rtsp_thread.is_alive()
-    })
-
-@app.route("/simple_rtsp/frame", methods=["GET"])
-def get_simple_rtsp_frame():
-    """获取最新的简单RTSP检测帧"""
-    if simple_rtsp_frame_queue.empty():
-        return jsonify({"success": False, "message": "没有可用的RTSP帧"})
-    
-    # 获取最新帧
-    buffer = simple_rtsp_frame_queue.queue[0]  # 获取但不移除
-    img_str = base64.b64encode(buffer).decode('utf-8')
-    
-    return jsonify({
-        "success": True, 
-        "image": f"data:image/jpeg;base64,{img_str}"
-    })
+rtsp_url = "rtsp://10.148.165.1:8554/live"  # 默认使用localhost而非0.0.0.0
 
 ########################################
 # 2) Helper Functions
@@ -391,7 +192,7 @@ def generate_posture_advice(token, posture_status, angles):
     
     # 改进的提示词，生成更自然、更有个性的建议
     user_prompt = (
-        f"你是一位关心办公人员健康的虚拟助手，语气友好且个性化。请根据以下姿势数据，给出一条简短、"
+        f"你是一位关心办公人员健康的虚拟助手，可爱且个性化。请根据以下姿势数据，给出一条简短、"
         f"有效且容易理解的改进建议(70-100字)。建议应该具体、实用，语气友好自然：\n\n"
         f"姿势状态：{posture_status}\n"
         f"颈部角度：{angles.get('neck', '--')}度\n"
@@ -439,73 +240,12 @@ def generate_posture_advice(token, posture_status, angles):
         print(f"解析文心一言响应时出错: {e}")
         return "系统暂时无法生成建议，请尝试保持良好坐姿，每小时起身活动5-10分钟，双眼注视远处放松视力。"
 
-def generate_audio(token, text):
-    """使用百度TTS API生成音频"""
-    if not token:
-        print("没有有效的TTS令牌，无法生成音频")
-        return None
-        
-    tts_url = "http://tsn.baidu.com/text2audio"
-    
-    # URL编码文本内容
-    encoded_text = urllib.parse.quote_plus(text)
-    
-    # 准备表单数据
-    data = {
-        "tex": encoded_text,
-        "lan": "zh",
-        "cuid": "posepilot",
-        "ctp": "1",
-        "aue": "3",
-        "tok": token,
-        "audio_ctrl": '{"sampling_rate":16000}'
-    }
-    
-    print(f"发送TTS请求，文本内容: {text}")
-    response = requests.post(tts_url, data=data, proxies={"http": None, "https": None})
-    
-    # 检查响应内容类型
-    content_type = response.headers.get("Content-Type", "")
-    print(f"TTS响应内容类型: {content_type}")
-    
-    if content_type.startswith("audio/"):
-        # 保存音频文件
-        timestamp = int(time.time())
-        audio_dir = os.path.join(app.static_folder, "audio")
-        os.makedirs(audio_dir, exist_ok=True)
-        
-        audio_file = f"report_{timestamp}.mp3"
-        audio_path = os.path.join(audio_dir, audio_file)
-        
-        with open(audio_path, "wb") as f:
-            f.write(response.content)
-        
-        print(f"音频文件已保存到: {audio_path}")
-        return f"/static/audio/{audio_file}"
-    else:
-        try:
-            error_text = response.text[:200]  # 只打印前200个字符，避免日志过长
-            print(f"TTS API非音频响应: {error_text}...")
-            
-            try:
-                error_json = response.json()
-                print(f"TTS API错误: {error_json}")
-            except:
-                pass
-                
-            return None
-        except:
-            print(f"无法解析TTS API响应")
-            return None
-
 def get_posture_report(angles, posture_status):
-    """整合姿势分析，生成文本建议和语音报告"""
+    """整合姿势分析，生成文本建议"""
     try:
         # Baidu API credentials
         llm_api_key = "2YcoX4HqbcA6pMEolmNknwTQ"
         llm_secret_key = "3eeNrmrpVcKnBEes3MZrcQJeMxqfLhEH"
-        tts_api_key = "UONsI3GbC0ABHkuWS2b8coxG" 
-        tts_secret_key = "FpvrKuHJjVJrf1K6HEuhM7wtXsTqFO6K"
         
         # 清除可能存在的代理环境变量
         if 'http_proxy' in os.environ:
@@ -529,28 +269,17 @@ def get_posture_report(angles, posture_status):
         ai_advice = generate_posture_advice(llm_token, posture_status, angles)
         print(f"最终生成的建议: {ai_advice}")
         
-        # 3. 组合完整报告文本
-        print("\n--- 步骤3: 组合完整报告文本 ---")
-        text_content = ai_advice
-        print(f"完整报告文本: {text_content}")
-        
-        # 4. 获取TTS令牌并生成音频
-        print("\n--- 步骤4: 获取TTS令牌 ---")
-        tts_token = get_access_token(tts_api_key, tts_secret_key)
-        if not tts_token:
-            print("警告: 无法获取TTS访问令牌，将只返回文本报告")
-            audio_url = ""
-        else:
-            print(f"成功获取TTS令牌: {tts_token[:10]}...")
-            
-            print("\n--- 步骤5: 生成语音 ---")
-            audio_url = generate_audio(tts_token, text_content) or ""
-            print(f"生成的音频URL: {audio_url}")
+        # 3. 通过IP音箱输出语音
+        try:
+            print("\n--- 步骤3: 通过IP音箱输出语音 ---")
+            send_tts(ai_advice)
+            print("成功发送文本到IP音箱")
+        except Exception as e:
+            print(f"发送到IP音箱失败: {e}")
         
         print("\n--- 报告生成完成 ---")
         result = {
-            "audio_url": audio_url,
-            "text": text_content,
+            "text": ai_advice,
             "ai_advice": ai_advice
         }
         print(f"最终结果: {result}")
@@ -573,35 +302,58 @@ def capture_baseline():
     不再需要从请求中获取图像数据
     """
     try:
-        # 检查RTSP是否连接
-        if not rtsp_thread_running or rtsp_frame_queue.empty():
-            return jsonify({"success": False, "error": "RTSP stream not running or no frames available"}), 400
+        # 检查RTSP是否在运行
+        if not rtsp_thread_running:
+            return jsonify({"success": False, "error": "RTSP stream not running"}), 400
         
-        # 从RTSP帧队列获取当前帧
-        frame = rtsp_frame_queue.queue[0]  # 获取但不移除最新帧
+        # 添加重试逻辑和更详细的日志
+        max_attempts = 5
+        attempt = 0
         
-        # 估计姿势并获取关键点
-        kp_norm, annotated_frame = pose_estimator.get_pose(frame)
-        kp_abs = scale_keypoints(kp_norm, frame.shape)
-
-        if len(kp_abs) < 15:
-            return jsonify({"success": False, "error": "Not enough keypoints to set baseline."})
-
-        # 设置anomaly detector中的基准姿势
-        anomaly_detector.set_baseline(kp_abs)
-        baseline_angles = anomaly_detector._compute_angles(kp_abs)
+        while attempt < max_attempts:
+            # 检查队列是否为空
+            if rtsp_frame_queue.empty():
+                print(f"尝试 #{attempt+1}: rtsp_frame_queue 为空，等待...")
+                time.sleep(0.5)  # 等待0.5秒后重试
+                attempt += 1
+                continue
+            
+            # 从RTSP帧队列获取当前帧
+            frame = rtsp_frame_queue.queue[0]  # 获取但不移除最新帧
+            print(f"成功从队列获取帧，大小: {frame.shape}")
+            
+            # 估计姿势并获取关键点
+            kp_norm, annotated_frame = pose_estimator.get_pose(frame)
+            kp_abs = scale_keypoints(kp_norm, frame.shape)
+            
+            print(f"获取到的关键点数量: {len(kp_abs)}")
+            
+            if len(kp_abs) < 15:
+                print(f"关键点不足 ({len(kp_abs)}/15)，重试...")
+                time.sleep(0.5)
+                attempt += 1
+                continue
+            
+            # 设置anomaly detector中的基准姿势
+            anomaly_detector.set_baseline(kp_abs)
+            baseline_angles = anomaly_detector._compute_angles(kp_abs)
+            
+            # 将图像帧编码为base64以便返回给前端
+            _, buffer = cv2.imencode(".jpg", annotated_frame)
+            annotated_b64 = base64.b64encode(buffer).decode("utf-8")
+            annotated_b64_url = f"data:image/jpeg;base64,{annotated_b64}"
+            
+            print(f"成功设置基准，角度: {baseline_angles}")
+            
+            return jsonify({
+                "success": True,
+                "baseline": kp_abs,
+                "angles": baseline_angles,
+                "annotated_image": annotated_b64_url
+            })
         
-        # 将图像帧编码为base64以便返回给前端
-        _, buffer = cv2.imencode(".jpg", annotated_frame)
-        annotated_b64 = base64.b64encode(buffer).decode("utf-8")
-        annotated_b64_url = f"data:image/jpeg;base64,{annotated_b64}"
-
-        return jsonify({
-            "success": True,
-            "baseline": kp_abs,
-            "angles": baseline_angles,
-            "annotated_image": annotated_b64_url
-        })
+        # 如果重试了多次仍然失败
+        return jsonify({"success": False, "error": "Failed to get valid frame after multiple attempts"}), 400
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -618,7 +370,7 @@ def detect_posture():
       { "image": "data:image/jpeg;base64,..." }
     Runs detection, pose estimation, and generates a posture report using Baidu API
     if the detected posture is bad.
-    Returns JSON with posture status, angles, annotated image, and audio.
+    Returns JSON with posture status, angles, annotated image, and text advice.
     """
     data = request.get_json()
     if not data or "image" not in data:
@@ -643,7 +395,7 @@ def detect_posture():
     annotated_b64_url = f"data:image/jpeg;base64,{annotated_b64}"
 
     # Generate a report using Baidu API if posture is bad
-    report_data = {"text": "", "audio_url": ""}
+    report_data = {"text": ""}
     if posture_status == "bad":
         report_data = get_posture_report(angles, posture_status)
 
@@ -651,8 +403,7 @@ def detect_posture():
         "posture": posture_status,
         "annotated_image": annotated_b64_url,
         "angles": angles,
-        "report": report_data.get("text", ""),
-        "audio_url": report_data.get("audio_url", "")
+        "report": report_data.get("text", "")
     })
 
 ########################################
@@ -661,7 +412,7 @@ def detect_posture():
 
 @app.route("/test_tts", methods=["GET"])
 def test_tts_endpoint():
-    """测试端点，模拟坏姿势并生成语音报告"""
+    """测试端点，模拟坏姿势并生成文本报告，同时通过IP音箱输出"""
     # 模拟角度数据
     angles = {
         'neck': 100,
@@ -680,8 +431,7 @@ def test_tts_endpoint():
             "posture": posture_status,
             "angles": angles,
             "report": report_data.get("text", ""),
-            "ai_advice": report_data.get("ai_advice", ""),
-            "audio_url": report_data.get("audio_url", "")
+            "ai_advice": report_data.get("ai_advice", "")
         }
         
         print(f"返回给客户端的响应: {response}")
@@ -696,31 +446,65 @@ def test_tts_endpoint():
 ########################################
 # 7) RTSP Stream Processing
 ########################################
-
 def rtsp_detection_thread():
     """
     后台线程，从 RTSP 流读取帧并进行检测
-    使用简单RTSP实现而非RTSPDetector
+    增强版：自动检测不良姿势并生成语音建议
     """
     global rtsp_thread_running
-    rtsp_url = "rtsp://10.148.165.1:8554/live"  # 默认RTSP地址，请根据MaixCAM输出的URL进行修改
+    global rtsp_url  # 使用全局变量，允许通过API更改
+    
+    # 添加姿势状态跟踪和建议生成频率控制
+    last_posture_status = None
+    last_advice_time = 0
+    continuous_bad_posture_time = 0  # 连续不良姿势的时长(秒)
+    
+    if not rtsp_url:
+        rtsp_url = "rtsp://10.148.165.1:8554/live"  # 默认使用localhost而非0.0.0.0
     
     print(f"RTSP检测线程启动，连接到: {rtsp_url}")
+    print("已启用自动姿势建议生成功能")
     
     try:
+        # 检查RTSP URL是否有效
+        if not rtsp_url or not rtsp_url.startswith('rtsp://'):
+            print(f"错误: 无效的RTSP URL: {rtsp_url}")
+            print("RTSP URL必须以'rtsp://'开头")
+            rtsp_thread_running = False
+            return
+            
+        print(f"尝试连接到RTSP流: {rtsp_url}")
+        
         # 设置RTSP连接
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|timeout;15000000"  # 设置15秒超时
+        
+        # 尝试打开RTSP流
+        print("创建VideoCapture对象...")
         cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+        
+        print("设置缓冲区大小...")
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-       
+        
+        # 设置读取超时
+        if hasattr(cv2, 'CAP_PROP_OPEN_TIMEOUT'):
+            print("设置连接超时为15秒...")
+            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT, 15000)  # 15秒连接超时
+        if hasattr(cv2, 'CAP_PROP_READ_TIMEOUT'):
+            print("设置读取超时为5秒...")
+            cap.set(cv2.CAP_PROP_READ_TIMEOUT, 5000)   # 5秒读取超时
         
         if not cap.isOpened():
             print(f"错误: 无法连接到RTSP流 {rtsp_url}")
+            print("请检查: 1) 设备是否开启 2) IP地址是否正确 3) 端口是否正确 4) 路径是否正确")
             rtsp_thread_running = False
             return
         
         print("RTSP detection thread started successfully!")
         
         while rtsp_thread_running:
+            # 记录当前时间用于跟踪不良姿势持续时间
+            current_time = time.time()
+            
             # 读取帧
             ret, frame = cap.read()
             
@@ -735,18 +519,13 @@ def rtsp_detection_thread():
                 cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
                 cap.set(cv2.CAP_PROP_RTSP_TRANSPORT, cv2.CAP_RTSP_TCP)
+                # 重置姿势追踪状态
+                last_posture_status = None
+                continuous_bad_posture_time = 0
                 continue
             
             # 检测人物
             boxes, confs = detector.detect(frame)
-            
-            # 打印检测结果
-            if boxes:
-                print(f"检测到 {len(boxes)} 个物体:")
-                for i, (box, conf) in enumerate(zip(boxes, confs)):
-                    print(f"  物体 {i+1}: 置信度 {conf:.2f}, 位置 {box}")
-            else:
-                print("未检测到物体")
             
             # 如果检测到人物，进行姿态估计
             if boxes:
@@ -771,6 +550,53 @@ def rtsp_detection_thread():
                 
                 print(f"姿态状态: {posture_status}")
                 
+                # ===== 新增：自动姿势建议生成逻辑 =====
+                # 1. 检查姿势状态变化
+                if posture_status == "bad":
+                    # 当姿势不良时，更新连续不良姿势的时长
+                    if last_posture_status == "bad":
+                        continuous_bad_posture_time += time.time() - current_time
+                    else:
+                        continuous_bad_posture_time = 0
+                    
+                    # 在以下情况生成建议:
+                    # a) 姿势状态从"good"变为"bad"
+                    # b) 连续保持不良姿势超过60秒
+                    # c) 距离上次建议已超过3分钟
+                    should_generate_advice = (
+                        (last_posture_status != "bad") or 
+                        (continuous_bad_posture_time > 60) or
+                        (current_time - last_advice_time > 180)
+                    )
+                    
+                    if should_generate_advice:
+                        try:
+                            print("\n===== 检测到不良姿势，自动生成建议 =====")
+                            report_data = get_posture_report(angles, posture_status)
+                            advice_text = report_data.get("text", "")
+                            
+                            if advice_text:
+                                print(f"建议内容: {advice_text}")
+                                # 更新结果队列中的建议字段，以便前端可以显示
+                                if not rtsp_result_queue.empty():
+                                    current_result = rtsp_result_queue.queue[0]
+                                    # 如果当前队列中有结果，更新它的建议字段
+                                    current_result['advice'] = advice_text
+                            
+                            # 更新上次建议时间
+                            last_advice_time = current_time
+                            continuous_bad_posture_time = 0  # 重置连续不良姿势时长
+                            
+                        except Exception as e:
+                            print(f"生成自动建议时出错: {e}")
+                else:
+                    # 姿势良好时，重置连续不良姿势时长
+                    continuous_bad_posture_time = 0
+                
+                # 更新上一次姿势状态
+                last_posture_status = posture_status
+                # ===== 自动姿势建议生成逻辑结束 =====
+                
                 # 将结果放入队列
                 try:
                     # 转换为 JPEG 格式
@@ -781,23 +607,56 @@ def rtsp_detection_thread():
                     if rtsp_result_queue.full():
                         rtsp_result_queue.get()
                     
-                    rtsp_result_queue.put({
+                    # 创建结果字典
+                    result_dict = {
                         'image': f"data:image/jpeg;base64,{img_str}",
                         'posture_status': posture_status,
                         'angles': angles
-                    })
+                    }
+                    
+                    # 如果最近有生成建议，添加到结果中
+                    if posture_status == "bad" and current_time - last_advice_time < 60:
+                        # 尝试从之前的结果中获取建议
+                        if not rtsp_result_queue.empty() and 'advice' in rtsp_result_queue.queue[0]:
+                            result_dict['advice'] = rtsp_result_queue.queue[0]['advice']
+                    
+                    rtsp_result_queue.put(result_dict)
                     
                     # 更新帧队列
+                    print(f"当前rtsp_frame_queue大小: {rtsp_frame_queue.qsize()}/{rtsp_frame_queue.maxsize}")
                     if rtsp_frame_queue.full():
                         rtsp_frame_queue.get()
-                    rtsp_frame_queue.put(annotated_frame)
+                    rtsp_frame_queue.put(frame)
                 except Exception as e:
                     print(f"处理RTSP帧时出错: {e}")
             else:
+                # 未检测到人物，重置跟踪状态
+                last_posture_status = None
+                continuous_bad_posture_time = 0
+                
                 # 即使没有检测到人物，也至少更新一下帧队列，以便baseline等功能使用
                 if rtsp_frame_queue.full():
                     rtsp_frame_queue.get()
                 rtsp_frame_queue.put(frame)
+                
+                # 也更新结果队列，防止"No RTSP detection results available"错误
+                try:
+                    # 转换为 JPEG 格式
+                    _, buffer = cv2.imencode('.jpg', frame)
+                    img_str = base64.b64encode(buffer).decode('utf-8')
+                    
+                    # 更新结果队列，如果队列已满则移除旧的结果
+                    if rtsp_result_queue.full():
+                        rtsp_result_queue.get()
+                    
+                    rtsp_result_queue.put({
+                        'image': f"data:image/jpeg;base64,{img_str}",
+                        'posture_status': "unknown",
+                        'angles': {},
+                        'message': "未检测到人物"
+                    })
+                except Exception as e:
+                    print(f"处理RTSP帧时出错: {e}")
             
             # 短暂休眠以减少 CPU 使用率
             time.sleep(0.01)
@@ -902,7 +761,7 @@ def set_rtsp_url():
 @app.route("/rtsp/report", methods=["GET"])
 def rtsp_report():
     """
-    获取最新的 RTSP 检测结果，并生成姿势报告
+    获取最新的 RTSP 检测结果，并生成姿势报告，同时通过IP音箱输出
     """
     if rtsp_result_queue.empty():
         return jsonify({"success": False, "message": "No RTSP detection results available"})
@@ -918,7 +777,10 @@ def rtsp_report():
         
         # 添加到结果中
         result['advice'] = report_data.get('text', '')
-        result['audio_url'] = report_data.get('audio_url', '')
+    # 添加对"unknown"状态的处理
+    elif posture_status == "unknown":
+        # 不生成报告，但添加一个信息
+        result['advice'] = "未检测到人物，无法生成姿势报告"
     
     return jsonify({"success": True, "result": result})
 
@@ -934,36 +796,7 @@ def rtsp_pose_data():
     posture_status = result.get('posture_status', '未知')
     angles = result.get('angles', {})
     
-    # 生成HTML显示
-    html = f"""
-    <html>
-    <head>
-        <title>姿态数据</title>
-        <meta http-equiv="refresh" content="2"> <!-- 每2秒刷新 -->
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; }}
-            h1 {{ color: #333; }}
-            .data {{ margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }}
-            .good {{ color: green; }}
-            .bad {{ color: red; }}
-            .angle {{ font-size: 18px; margin: 10px 0; }}
-        </style>
-    </head>
-    <body>
-        <h1>实时姿态数据</h1>
-        <div class="data">
-            <h2>姿态状态: <span class="{posture_status}">{posture_status}</span></h2>
-            <div class="angle">颈部角度: {angles.get('neck', '--')}°</div>
-            <div class="angle">平均身体角度: {angles.get('avg_body', '--')}°</div>
-            <div class="angle">左侧身体角度: {angles.get('left_body', '--')}°</div>
-            <div class="angle">右侧身体角度: {angles.get('right_body', '--')}°</div>
-        </div>
-        <p><a href="/rtsp/pose_data">手动刷新</a> | <a href="/">返回主页</a></p>
-    </body>
-    </html>
-    """
-    
-    return html
+   
 
 ########################################
 # 8) Serve the Index HTML
@@ -989,5 +822,11 @@ if __name__ == "__main__":
     # 确保static文件夹存在
     os.makedirs(os.path.join(app.static_folder, "audio"), exist_ok=True)
     
-    # 默认运行在localhost:5000
+    # 自动启动RTSP检测线程
+    print("自动启动RTSP检测线程...")
+    rtsp_thread_running = True
+    rtsp_thread = threading.Thread(target=rtsp_detection_thread)
+    rtsp_thread.daemon = True
+    rtsp_thread.start()
+    
     app.run(host="0.0.0.0", port=5000, debug=True)

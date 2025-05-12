@@ -1,0 +1,1 @@
+# cap.set(cv2.CAP_PROP_RTSP_TRANSPORT, cv2.CAP_RTSP_TCP) # Commented due to compatibility issues 

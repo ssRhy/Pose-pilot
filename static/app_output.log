@@ -1,0 +1,26 @@
+2025-05-07 13:35:04,849 [INFO] yolo_detector - YOLODetector with model=yolov8n-pose.pt, device=cpu, conf=0.70
+2025-05-07 13:35:04,851 [INFO] pose_estimator - Loading local pose model from yolov8n-pose.pt
+2025-05-07 13:35:04,883 [INFO] __main__ - Successfully initialized PoseEstimator
+
+**********************************************************************
+*                                                                    *
+*  智能姿态检测系统正在启动...                                           *
+*  访问 http://localhost:5000 查看Web界面                                *
+*  访问 http://localhost:5000/debug/print_test 测试打印功能                 *
+*                                                                    *
+**********************************************************************
+
+ * Serving Flask app 'main' (lazy loading)
+ * Environment: production
+   WARNING: This is a development server. Do not use it in a production deployment.
+   Use a production WSGI server instead.
+ * Debug mode: on
+2025-05-07 13:35:04,923 [INFO] werkzeug -  * Restarting with stat
+2025-05-07 13:35:08,005 [INFO] yolo_detector - YOLODetector with model=yolov8n-pose.pt, device=cpu, conf=0.70
+2025-05-07 13:35:08,006 [INFO] pose_estimator - Loading local pose model from yolov8n-pose.pt
+2025-05-07 13:35:08,040 [INFO] __main__ - Successfully initialized PoseEstimator
+2025-05-07 13:35:08,063 [WARNING] werkzeug -  * Debugger is active!
+2025-05-07 13:35:08,070 [INFO] werkzeug -  * Debugger PIN: 140-685-619
+2025-05-07 13:35:09,582 [WARNING] werkzeug -  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2025-05-07 13:35:09,583 [INFO] werkzeug -  * Running on http://192.168.3.243:5000/ (Press CTRL+C to quit)
