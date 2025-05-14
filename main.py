@@ -51,7 +51,10 @@ if sys.platform == 'win32':
 # 1) Flask App Setup
 ########################################
 
+from flask_cors import CORS
+
 app = Flask(__name__, static_folder='static')
+CORS(app)  # Enable CORS for all routes
 
 # Instantiate YOLO, Pose, and Anomaly modules
 detector = YOLODetector(

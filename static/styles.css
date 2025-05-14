@@ -1,0 +1,121 @@
+/* Additional styles for Pose Pilot frontend */
+
+.main-logo {
+  max-width: 120px;
+  height: auto;
+  margin-right: 15px;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.advice-box {
+  position: relative;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+  }
+}
+
+.stats-card {
+  text-align: center;
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stats-card h3 {
+  font-size: 1.2rem;
+  margin-bottom: 5px;
+  color: #333;
+}
+
+.stats-card .value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #4a6de5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .rtsp-container {
+    padding-bottom: 75%; /* Adjust aspect ratio for smaller screens */
+  }
+
+  .stats-card .value {
+    font-size: 1.5rem;
+  }
+}
+
+/* Toast notification styles */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1050;
+}
+
+.toast {
+  min-width: 250px;
+  margin-bottom: 10px;
+  background-color: white;
+  color: #333;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  color: white;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.toast-body {
+  padding: 0.75rem;
+}
+
+.toast-success .toast-header {
+  background-color: #28a745;
+}
+
+.toast-warning .toast-header {
+  background-color: #ffc107;
+}
+
+.toast-error .toast-header {
+  background-color: #dc3545;
+}
+
+.toast-info .toast-header {
+  background-color: #17a2b8;
+}

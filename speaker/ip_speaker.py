@@ -39,7 +39,7 @@ def send_tts(text: str, host: str = "192.168.3.29", port: int = 80):
 
 if __name__ == "__main__":
     # 测试用例
-    sample_text = "这是一个姿势检测系统的测试消息"
+    sample_text = "韩蕴你好"
     # 只发送并打印返回
     print(f"测试发送文本: {sample_text}")
     result = send_tts(sample_text)

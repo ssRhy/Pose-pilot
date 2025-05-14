@@ -3,429 +3,656 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>姿态监测系统 - AI姿势纠正建议</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Pose Pilot - Real-time Posture Detection</title>
+    <link
+      rel="icon"
+      href="https://via.placeholder.com/32x32/4a6de5/ffffff?text=P"
+      type="image/png"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
     <style>
-      @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;500;700&display=swap");
-
       body {
-        font-family: "Montserrat", sans-serif;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: #e2e8f0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
       }
-
-      .btn-primary {
-        background: linear-gradient(45deg, #10b981 0%, #3b82f6 100%);
-        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
       }
-
-      .btn-secondary {
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-      }
-
-      .status-good {
-        background: linear-gradient(45deg, #10b981 0%, #34d399 100%);
-        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
-      }
-
-      .status-bad {
-        background: linear-gradient(45deg, #ef4444 0%, #f87171 100%);
-        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
-      }
-
       .card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 0.75rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        overflow: hidden;
       }
-
-      #adviceBox {
-        min-height: 100px;
-        transition: all 0.3s ease;
+      .card-header {
+        background-color: #4a6de5;
+        color: white;
+        font-weight: bold;
+        padding: 15px;
+      }
+      .rtsp-container {
+        position: relative;
+        width: 100%;
+        height: 0;
+        padding-bottom: 56.25%; /* 16:9 aspect ratio */
+        background-color: #333;
+        overflow: hidden;
+      }
+      .rtsp-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+      .btn-primary {
+        background-color: #4a6de5;
+        border-color: #4a6de5;
+      }
+      .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+      }
+      .status-badge {
+        font-size: 1rem;
+        padding: 8px 15px;
+        border-radius: 50px;
+      }
+      .status-good {
+        background-color: #28a745;
+        color: white;
+      }
+      .status-bad {
+        background-color: #dc3545;
+        color: white;
+      }
+      .status-unknown {
+        background-color: #6c757d;
+        color: white;
+      }
+      .angle-display {
+        font-size: 0.9rem;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        margin-bottom: 10px;
+      }
+      .advice-box {
+        background-color: #fffaf0;
+        border-left: 5px solid #ffc107;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 15px;
+        font-size: 1.1rem;
+      }
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: #fff;
+        animation: spin 1s ease-in-out infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .bad-posture-duration {
+        color: #dc3545;
+        font-weight: bold;
+      }
+      .app-logo {
+        width: 80px;
+        height: 80px;
+        margin-right: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       }
     </style>
   </head>
-  <body class="min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-      <!-- Header -->
-      <header class="text-center mb-10">
-        <h1
-          class="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-blue-500 mb-2"
-        >
-          智能姿态监测系统
+  <body>
+    <!-- Toast container for notifications -->
+    <div class="toast-container"></div>
+
+    <div class="container mt-4">
+      <div class="header-title">
+        <img
+          src="https://via.placeholder.com/80x80/4a6de5/ffffff?text=PP"
+          alt="Pose Pilot Logo"
+          class="app-logo"
+        />
+        <h1 class="text-center mb-4">
+          Pose Pilot <small class="text-muted">AI Posture Assistant</small>
         </h1>
-        <p class="text-xl text-white/80">AI实时姿势检测与纠正建议</p>
-      </header>
+      </div>
 
-      <div class="grid md:grid-cols-12 gap-6">
-        <!-- 左侧面板：摄像头和检测控制 -->
-        <div class="md:col-span-7 card p-6">
-          <h2 class="text-2xl font-bold mb-4">摄像头监测</h2>
-
-          <!-- 摄像头显示区域 -->
-          <div
-            class="relative aspect-video bg-black/30 rounded-lg mb-4 overflow-hidden"
-          >
-            <img
-              id="videoFeed"
-              src=""
-              alt="摄像头画面"
-              class="w-full h-full object-cover"
-            />
+      <div class="row">
+        <!-- RTSP Stream Display -->
+        <div class="col-lg-8">
+          <div class="card">
             <div
-              id="loadingIndicator"
-              class="absolute inset-0 flex items-center justify-center bg-black/50"
+              class="card-header d-flex justify-content-between align-items-center"
             >
-              <div
-                class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"
-              ></div>
+              <span><i class="bi bi-camera-video"></i> 实时姿势监测</span>
+              <div id="rtspStatus" class="status-badge status-unknown">
+                未连接
+              </div>
             </div>
-            <div
-              id="statusBadge"
-              class="absolute top-4 right-4 px-3 py-1 rounded-full text-white font-medium hidden"
-            >
-              等待检测...
+            <div class="card-body p-0">
+              <div class="rtsp-container">
+                <img
+                  id="rtspImage"
+                  class="rtsp-image"
+                  src="https://via.placeholder.com/640x360?text=等待RTSP连接..."
+                  alt="RTSP Stream"
+                />
+                <div
+                  id="badPostureDuration"
+                  class="bad-posture-duration p-2 position-absolute top-0 end-0 d-none"
+                >
+                  不良姿势持续: <span id="durationValue">0</span> 秒
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 控制按钮 -->
-          <div class="flex flex-wrap gap-4 mb-6">
-            <button
-              id="startRTSP"
-              class="btn-primary px-4 py-2 rounded-lg text-white font-medium"
-            >
-              开始RTSP检测
-            </button>
-            <button
-              id="stopRTSP"
-              class="btn-secondary px-4 py-2 rounded-lg text-white font-medium"
-            >
-              停止检测
-            </button>
-            <button
-              id="captureBaseline"
-              class="btn-secondary px-4 py-2 rounded-lg text-white font-medium"
-            >
-              记录标准姿势
-            </button>
-            <button
-              id="getReport"
-              class="btn-primary px-4 py-2 rounded-lg text-white font-medium"
-            >
-              获取姿势建议
-            </button>
-          </div>
-
-          <!-- 姿势数据指标 -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="p-3 rounded-lg bg-white/10">
-              <p class="text-sm text-white/60">颈部角度</p>
-              <p id="neckAngle" class="text-xl font-bold">--°</p>
+          <!-- Statistics Row -->
+          <div class="row">
+            <div class="col-md-3">
+              <div class="stats-card">
+                <h3>已处理帧数</h3>
+                <div class="value" id="processedFrames">0</div>
+              </div>
             </div>
-            <div class="p-3 rounded-lg bg-white/10">
-              <p class="text-sm text-white/60">左侧身体角度</p>
-              <p id="leftBodyAngle" class="text-xl font-bold">--°</p>
+            <div class="col-md-3">
+              <div class="stats-card">
+                <h3>良好姿势</h3>
+                <div class="value text-success" id="goodPostures">0</div>
+              </div>
             </div>
-            <div class="p-3 rounded-lg bg-white/10">
-              <p class="text-sm text-white/60">右侧身体角度</p>
-              <p id="rightBodyAngle" class="text-xl font-bold">--°</p>
+            <div class="col-md-3">
+              <div class="stats-card">
+                <h3>不良姿势</h3>
+                <div class="value text-danger" id="badPostures">0</div>
+              </div>
             </div>
-            <div class="p-3 rounded-lg bg-white/10">
-              <p class="text-sm text-white/60">平均身体角度</p>
-              <p id="avgBodyAngle" class="text-xl font-bold">--°</p>
+            <div class="col-md-3">
+              <div class="stats-card">
+                <h3>建议次数</h3>
+                <div class="value text-primary" id="adviceCount">0</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- 右侧面板：AI建议和操作日志 -->
-        <div class="md:col-span-5 flex flex-col gap-6">
-          <!-- AI建议卡片 -->
-          <div class="card p-6 flex-grow">
-            <h2 class="text-2xl font-bold mb-4">AI姿势建议</h2>
-            <div id="adviceBox" class="bg-white/10 p-4 rounded-lg mb-4">
-              <p class="text-white/80">AI将在此处显示针对您当前姿势的建议...</p>
+        <!-- Controls & Results -->
+        <div class="col-lg-4">
+          <div class="card mb-3">
+            <div class="card-header">
+              <i class="bi bi-sliders"></i> RTSP 控制
             </div>
-            <button
-              id="testTTS"
-              class="btn-secondary w-full py-2 rounded-lg text-white font-medium"
-            >
-              测试语音播报
-            </button>
+            <div class="card-body">
+              <div class="mb-3">
+                <label for="rtspUrl" class="form-label">RTSP 地址</label>
+                <div class="input-group">
+                  <span class="input-group-text"
+                    ><i class="bi bi-link-45deg"></i
+                  ></span>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="rtspUrl"
+                    value="rtsp://10.148.165.1:8554/live"
+                  />
+                </div>
+              </div>
+              <div class="d-grid gap-2">
+                <button id="startRtspBtn" class="btn btn-primary">
+                  <i class="bi bi-play-fill"></i>
+                  <span id="startBtnText">启动 RTSP 流</span>
+                  <span id="startBtnLoading" class="loading d-none"></span>
+                </button>
+                <button id="stopRtspBtn" class="btn btn-danger" disabled>
+                  <i class="bi bi-stop-fill"></i> 停止 RTSP 流
+                </button>
+                <button
+                  id="captureBaselineBtn"
+                  class="btn btn-success"
+                  disabled
+                >
+                  <i class="bi bi-camera"></i> 捕获基准姿势
+                </button>
+              </div>
+            </div>
           </div>
 
-          <!-- 操作日志卡片 -->
-          <div class="card p-6">
-            <h2 class="text-2xl font-bold mb-4">操作日志</h2>
-            <div
-              id="logBox"
-              class="bg-black/30 p-4 rounded-lg h-40 overflow-y-auto text-sm"
-            >
-              <p class="text-white/60">系统就绪，等待操作...</p>
+          <div class="card">
+            <div class="card-header">
+              <i class="bi bi-graph-up"></i> 姿势分析结果
+            </div>
+            <div class="card-body">
+              <div id="postureStatus">等待姿势数据...</div>
+
+              <div id="anglesContainer" class="angle-display mt-3">
+                <h6><i class="bi bi-rulers"></i> 角度数据:</h6>
+                <div class="row">
+                  <div class="col-6">
+                    <p>
+                      <strong>颈部角度:</strong> <span id="neckAngle">--</span>°
+                    </p>
+                    <p>
+                      <strong>左侧身体角度:</strong>
+                      <span id="leftBodyAngle">--</span>°
+                    </p>
+                  </div>
+                  <div class="col-6">
+                    <p>
+                      <strong>右侧身体角度:</strong>
+                      <span id="rightBodyAngle">--</span>°
+                    </p>
+                    <p>
+                      <strong>平均身体角度:</strong>
+                      <span id="avgBodyAngle">--</span>°
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div id="adviceContainer" class="advice-box d-none mt-4">
+                <h6><i class="bi bi-lightbulb"></i> 智能建议:</h6>
+                <p id="adviceText"></p>
+              </div>
+
+              <button
+                id="getReportBtn"
+                class="btn btn-info mt-3 w-100"
+                disabled
+              >
+                <i class="bi bi-file-earmark-text"></i> 获取详细报告
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Baseline Section -->
+      <div class="row mt-3">
+        <div class="col">
+          <div class="card">
+            <div class="card-header">
+              <i class="bi bi-bookmark-check"></i> 当前基准姿势
+            </div>
+            <div class="card-body">
+              <div id="baselineContainer" class="text-center">
+                <p>
+                  尚未设置姿势基准线。点击"捕获基准姿势"按钮来设置您的标准坐姿。
+                </p>
+                <div id="baselineImageContainer" class="d-none">
+                  <img
+                    id="baselineImage"
+                    class="img-fluid"
+                    style="max-height: 300px"
+                    src=""
+                    alt="基准姿势"
+                  />
+                  <div class="mt-2">
+                    <h6>基准角度:</h6>
+                    <div id="baselineAngles" class="angle-display"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Import the RTSP Manager -->
+    <script src="/static/rtsp-manager.js"></script>
+
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
-        // 获取DOM元素
-        const videoFeed = document.getElementById("videoFeed");
-        const loadingIndicator = document.getElementById("loadingIndicator");
-        const statusBadge = document.getElementById("statusBadge");
-        const adviceBox = document.getElementById("adviceBox");
-        const logBox = document.getElementById("logBox");
+      document.addEventListener("DOMContentLoaded", function () {
+        // DOM Elements
+        const rtspImage = document.getElementById("rtspImage");
+        const rtspStatus = document.getElementById("rtspStatus");
+        const rtspUrl = document.getElementById("rtspUrl");
+        const startRtspBtn = document.getElementById("startRtspBtn");
+        const startBtnText = document.getElementById("startBtnText");
+        const startBtnLoading = document.getElementById("startBtnLoading");
+        const stopRtspBtn = document.getElementById("stopRtspBtn");
+        const captureBaselineBtn =
+          document.getElementById("captureBaselineBtn");
+        const postureStatus = document.getElementById("postureStatus");
         const neckAngle = document.getElementById("neckAngle");
         const leftBodyAngle = document.getElementById("leftBodyAngle");
         const rightBodyAngle = document.getElementById("rightBodyAngle");
         const avgBodyAngle = document.getElementById("avgBodyAngle");
+        const adviceContainer = document.getElementById("adviceContainer");
+        const adviceText = document.getElementById("adviceText");
+        const getReportBtn = document.getElementById("getReportBtn");
+        const baselineContainer = document.getElementById("baselineContainer");
+        const baselineImageContainer = document.getElementById(
+          "baselineImageContainer"
+        );
+        const baselineImage = document.getElementById("baselineImage");
+        const baselineAngles = document.getElementById("baselineAngles");
+        const badPostureDuration =
+          document.getElementById("badPostureDuration");
+        const durationValue = document.getElementById("durationValue");
 
-        // 按钮元素
-        const startRTSPBtn = document.getElementById("startRTSP");
-        const stopRTSPBtn = document.getElementById("stopRTSP");
-        const captureBaselineBtn = document.getElementById("captureBaseline");
-        const getReportBtn = document.getElementById("getReport");
-        const testTTSBtn = document.getElementById("testTTS");
+        // Stat elements
+        const processedFrames = document.getElementById("processedFrames");
+        const goodPostures = document.getElementById("goodPostures");
+        const badPostures = document.getElementById("badPostures");
+        const adviceCount = document.getElementById("adviceCount");
 
-        // 添加日志的函数
-        function addLog(message) {
-          const logEntry = document.createElement("p");
-          logEntry.className = "text-white/60 mb-1";
-          logEntry.innerHTML = `<span class="text-emerald-400">[${new Date().toLocaleTimeString()}]</span> ${message}`;
-          logBox.appendChild(logEntry);
-          logBox.scrollTop = logBox.scrollHeight;
-        }
+        // Toast container
+        const toastContainer = document.querySelector(".toast-container");
 
-        // 更新状态标签
-        function updateStatus(status) {
-          statusBadge.classList.remove("hidden", "status-good", "status-bad");
-          if (status === "good") {
-            statusBadge.classList.add("status-good");
-            statusBadge.textContent = "姿势良好";
-          } else if (status === "bad") {
-            statusBadge.classList.add("status-bad");
-            statusBadge.textContent = "姿势不良";
+        // Initialize by checking RTSP status
+        rtspManager.checkStatus();
+
+        // Add event listeners
+        rtspManager.addEventListener("frame", handleFrame);
+        rtspManager.addEventListener("status", handleStatus);
+        rtspManager.addEventListener("error", handleError);
+        rtspManager.addEventListener("advice", handleAdvice);
+
+        // Button event listeners
+        startRtspBtn.addEventListener("click", startRtsp);
+        stopRtspBtn.addEventListener("click", stopRtsp);
+        captureBaselineBtn.addEventListener("click", captureBaseline);
+        getReportBtn.addEventListener("click", generateReport);
+
+        // Handler functions
+        function handleFrame(data) {
+          // Update image
+          rtspImage.src = data.image;
+
+          // Update posture status
+          updatePostureStatus(data.posture_status);
+
+          // Update angles
+          updateAngles(data.angles);
+
+          // Update bad posture duration if applicable
+          if (data.posture_status === "bad" && data.badPostureDuration > 0) {
+            durationValue.textContent = data.badPostureDuration;
+            badPostureDuration.classList.remove("d-none");
           } else {
-            statusBadge.textContent = status;
+            badPostureDuration.classList.add("d-none");
           }
-          statusBadge.classList.remove("hidden");
+
+          // Update stats
+          updateStats(data.stats);
         }
 
-        // 更新角度数据
+        function handleStatus(data) {
+          if (data.running) {
+            updateUIForRtspRunning();
+          } else {
+            updateUIForRtspStopped();
+          }
+        }
+
+        function handleError(data) {
+          console.error("RTSP Error:", data);
+          showToast("错误", data.message, "error");
+        }
+
+        function handleAdvice(data) {
+          adviceText.textContent = data.advice;
+          adviceContainer.classList.remove("d-none");
+
+          // Show a toast notification with the advice
+          showToast("姿势建议", data.advice, "warning");
+        }
+
+        // Action functions
+        async function startRtsp() {
+          // Show loading state
+          startBtnText.classList.add("d-none");
+          startBtnLoading.classList.remove("d-none");
+          startRtspBtn.disabled = true;
+
+          // Set RTSP URL if changed (this would require backend support)
+
+          // Start RTSP stream
+          const result = await rtspManager.start();
+
+          if (!result.success) {
+            // If failed, reset button and show error
+            resetStartButton();
+            showToast("错误", "无法启动RTSP流", "error");
+          }
+        }
+
+        async function stopRtsp() {
+          const result = await rtspManager.stop();
+
+          if (!result.success) {
+            showToast("错误", "无法停止RTSP流", "error");
+          }
+        }
+
+        async function captureBaseline() {
+          captureBaselineBtn.disabled = true;
+          captureBaselineBtn.innerHTML =
+            "<i class='bi bi-camera'></i> 捕获中...<span class='loading ms-2'></span>";
+
+          const result = await rtspManager.captureBaseline();
+
+          if (result.success) {
+            displayBaseline(result.data);
+            showToast("成功", "已成功捕获基准姿势", "success");
+          } else {
+            showToast(
+              "错误",
+              "无法捕获基准姿势。请确保您在摄像头视图中并保持标准坐姿。",
+              "error"
+            );
+          }
+
+          captureBaselineBtn.disabled = false;
+          captureBaselineBtn.innerHTML =
+            "<i class='bi bi-camera'></i> 捕获基准姿势";
+        }
+
+        async function generateReport() {
+          getReportBtn.disabled = true;
+          getReportBtn.innerHTML =
+            "<i class='bi bi-file-earmark-text'></i> 生成中...";
+
+          const result = await rtspManager.generateReport();
+
+          if (!result.success) {
+            showToast("错误", "无法生成姿势报告", "error");
+          }
+
+          getReportBtn.disabled = false;
+          getReportBtn.innerHTML =
+            "<i class='bi bi-file-earmark-text'></i> 获取详细报告";
+        }
+
+        // Helper functions
+        function updatePostureStatus(status) {
+          let statusHtml = "";
+
+          switch (status) {
+            case "good":
+              statusHtml =
+                "<div class='alert alert-success'><i class='bi bi-emoji-smile'></i> 姿势良好 👍</div>";
+              break;
+            case "bad":
+              statusHtml =
+                "<div class='alert alert-danger'><i class='bi bi-exclamation-triangle'></i> 注意! 姿势不良 ⚠️</div>";
+              break;
+            case "unknown":
+            default:
+              statusHtml =
+                "<div class='alert alert-secondary'><i class='bi bi-question-circle'></i> 未检测到姿势</div>";
+              break;
+          }
+
+          postureStatus.innerHTML = statusHtml;
+        }
+
         function updateAngles(angles) {
-          if (!angles) return;
-
-          neckAngle.textContent =
-            angles.neck !== undefined ? `${angles.neck.toFixed(1)}°` : "--°";
-          leftBodyAngle.textContent =
-            angles.left_body !== undefined
-              ? `${angles.left_body.toFixed(1)}°`
-              : "--°";
-          rightBodyAngle.textContent =
-            angles.right_body !== undefined
-              ? `${angles.right_body.toFixed(1)}°`
-              : "--°";
-          avgBodyAngle.textContent =
-            angles.avg_body !== undefined
-              ? `${angles.avg_body.toFixed(1)}°`
-              : "--°";
-        }
-
-        // 显示AI建议
-        function showAdvice(text) {
-          adviceBox.innerHTML = `<p class="text-white">${text}</p>`;
-        }
-
-        // 开始RTSP检测
-        startRTSPBtn.addEventListener("click", async () => {
-          try {
-            addLog("正在启动RTSP检测...");
-            loadingIndicator.classList.remove("hidden");
-
-            const response = await fetch("/rtsp/start", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({}),
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-              addLog("RTSP检测已启动");
-              loadingIndicator.classList.add("hidden");
-              startPolling();
-            } else {
-              addLog(`启动失败: ${data.message || "未知错误"}`);
-              loadingIndicator.classList.add("hidden");
-            }
-          } catch (error) {
-            addLog(`错误: ${error.message}`);
-            loadingIndicator.classList.add("hidden");
-          }
-        });
-
-        // 停止RTSP检测
-        stopRTSPBtn.addEventListener("click", async () => {
-          try {
-            addLog("正在停止RTSP检测...");
-
-            const response = await fetch("/rtsp/stop", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-              addLog("RTSP检测已停止");
-              stopPolling();
-              videoFeed.src = "";
-              updateStatus("已停止");
-            } else {
-              addLog(`停止失败: ${data.message || "未知错误"}`);
-            }
-          } catch (error) {
-            addLog(`错误: ${error.message}`);
-          }
-        });
-
-        // 记录标准姿势
-        captureBaselineBtn.addEventListener("click", async () => {
-          try {
-            addLog("正在记录标准姿势...");
-            loadingIndicator.classList.remove("hidden");
-
-            const response = await fetch("/capture_baseline", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({}),
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-              addLog("标准姿势已记录");
-              updateAngles(data.angles);
-            } else {
-              addLog(`记录失败: ${data.error || "未知错误"}`);
-            }
-
-            loadingIndicator.classList.add("hidden");
-          } catch (error) {
-            addLog(`错误: ${error.message}`);
-            loadingIndicator.classList.add("hidden");
-          }
-        });
-
-        // 获取姿势建议
-        getReportBtn.addEventListener("click", async () => {
-          try {
-            addLog("正在获取姿势建议...");
-
-            const response = await fetch("/rtsp/report");
-            const data = await response.json();
-
-            if (data.success && data.result) {
-              if (data.result.advice) {
-                showAdvice(data.result.advice);
-                addLog("已获取姿势建议");
-              } else {
-                addLog("当前姿势良好，无需建议");
-              }
-            } else {
-              addLog(`获取建议失败: ${data.message || "未知错误"}`);
-            }
-          } catch (error) {
-            addLog(`错误: ${error.message}`);
-          }
-        });
-
-        // 测试语音播报
-        testTTSBtn.addEventListener("click", async () => {
-          try {
-            addLog("正在测试语音播报...");
-
-            const response = await fetch("/test_tts");
-            const data = await response.json();
-
-            if (data.report) {
-              showAdvice(data.report);
-              addLog("语音播报已发送");
-            } else if (data.error) {
-              addLog(`语音播报失败: ${data.error}`);
-            }
-          } catch (error) {
-            addLog(`错误: ${error.message}`);
-          }
-        });
-
-        // 轮询获取最新的RTSP结果
-        let pollingInterval;
-
-        function startPolling() {
-          // 清除可能存在的旧轮询
-          if (pollingInterval) clearInterval(pollingInterval);
-
-          // 启动新轮询，每500ms检查一次
-          pollingInterval = setInterval(async () => {
-            try {
-              const response = await fetch("/rtsp/latest");
-              const data = await response.json();
-
-              if (data.success && data.result) {
-                const result = data.result;
-
-                // 更新视频源
-                if (result.image && videoFeed.src !== result.image) {
-                  videoFeed.src = result.image;
-                }
-
-                // 更新姿势状态
-                updateStatus(result.posture_status);
-
-                // 更新角度数据
-                updateAngles(result.angles);
-              }
-            } catch (error) {
-              console.error("轮询错误:", error);
-            }
-          }, 500);
-        }
-
-        function stopPolling() {
-          if (pollingInterval) {
-            clearInterval(pollingInterval);
-            pollingInterval = null;
+          if (angles) {
+            neckAngle.textContent = angles.neck ? angles.neck.toFixed(1) : "--";
+            leftBodyAngle.textContent = angles.left_body
+              ? angles.left_body.toFixed(1)
+              : "--";
+            rightBodyAngle.textContent = angles.right_body
+              ? angles.right_body.toFixed(1)
+              : "--";
+            avgBodyAngle.textContent = angles.avg_body
+              ? angles.avg_body.toFixed(1)
+              : "--";
+          } else {
+            neckAngle.textContent = "--";
+            leftBodyAngle.textContent = "--";
+            rightBodyAngle.textContent = "--";
+            avgBodyAngle.textContent = "--";
           }
         }
 
-        // 初始检查RTSP状态
-        async function checkRTSPStatus() {
-          try {
-            const response = await fetch("/rtsp/status");
-            const data = await response.json();
-
-            if (data.running) {
-              addLog("RTSP检测已在运行中");
-              startPolling();
-            }
-          } catch (error) {
-            console.error("检查RTSP状态失败:", error);
+        function updateStats(stats) {
+          if (stats) {
+            processedFrames.textContent = stats.framesProcessed;
+            goodPostures.textContent = stats.goodPostureDetections;
+            badPostures.textContent = stats.badPostureDetections;
+            adviceCount.textContent = stats.adviceGenerated;
           }
         }
 
-        // 页面加载时检查状态
-        checkRTSPStatus();
+        function displayBaseline(data) {
+          // Update baseline image
+          baselineImage.src = data.annotated_image;
+          baselineImageContainer.classList.remove("d-none");
+
+          // Update baseline angles
+          let anglesHtml = "";
+          if (data.angles) {
+            anglesHtml += `<div class='row'>
+              <div class='col-6'>
+                <p><strong>颈部角度:</strong> ${
+                  data.angles.neck ? data.angles.neck.toFixed(1) : "--"
+                }°</p>
+                <p><strong>左侧身体角度:</strong> ${
+                  data.angles.left_body
+                    ? data.angles.left_body.toFixed(1)
+                    : "--"
+                }°</p>
+              </div>
+              <div class='col-6'>
+                <p><strong>右侧身体角度:</strong> ${
+                  data.angles.right_body
+                    ? data.angles.right_body.toFixed(1)
+                    : "--"
+                }°</p>
+                <p><strong>平均身体角度:</strong> ${
+                  data.angles.avg_body ? data.angles.avg_body.toFixed(1) : "--"
+                }°</p>
+              </div>
+            </div>`;
+          }
+          baselineAngles.innerHTML = anglesHtml;
+        }
+
+        function updateUIForRtspRunning() {
+          rtspStatus.textContent = "已连接";
+          rtspStatus.className = "status-badge status-good";
+          resetStartButton();
+          startRtspBtn.disabled = true;
+          stopRtspBtn.disabled = false;
+          captureBaselineBtn.disabled = false;
+          getReportBtn.disabled = false;
+        }
+
+        function updateUIForRtspStopped() {
+          rtspStatus.textContent = "未连接";
+          rtspStatus.className = "status-badge status-unknown";
+          rtspImage.src =
+            "https://via.placeholder.com/640x360?text=RTSP+Stream+Disconnected";
+          resetStartButton();
+          stopRtspBtn.disabled = true;
+          captureBaselineBtn.disabled = true;
+          getReportBtn.disabled = true;
+
+          // Reset posture display
+          postureStatus.innerHTML =
+            "<div class='alert alert-secondary'><i class='bi bi-question-circle'></i> 未检测到姿势</div>";
+          updateAngles(null);
+          adviceContainer.classList.add("d-none");
+          badPostureDuration.classList.add("d-none");
+
+          // Reset stats
+          updateStats({
+            framesProcessed: 0,
+            goodPostureDetections: 0,
+            badPostureDetections: 0,
+            adviceGenerated: 0,
+          });
+        }
+
+        function resetStartButton() {
+          startBtnText.classList.remove("d-none");
+          startBtnLoading.classList.add("d-none");
+          startRtspBtn.disabled = false;
+        }
+
+        function showToast(title, message, type = "info") {
+          const toastId = "toast-" + Date.now();
+
+          const toastHtml = `
+            <div id="${toastId}" class="toast toast-${type}" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000">
+              <div class="toast-header">
+                <i class="bi bi-${
+                  type === "success"
+                    ? "check-circle"
+                    : type === "error"
+                    ? "x-circle"
+                    : type === "warning"
+                    ? "exclamation-triangle"
+                    : "info-circle"
+                } me-2"></i>
+                <strong class="me-auto">${title}</strong>
+                <small>刚刚</small>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+              </div>
+              <div class="toast-body">${message}</div>
+            </div>
+          `;
+
+          toastContainer.insertAdjacentHTML("beforeend", toastHtml);
+
+          const toastElement = document.getElementById(toastId);
+          const toast = new bootstrap.Toast(toastElement);
+          toast.show();
+
+          // Remove toast after it's hidden
+          toastElement.addEventListener("hidden.bs.toast", function () {
+            toastElement.remove();
+          });
+        }
       });
     </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>
