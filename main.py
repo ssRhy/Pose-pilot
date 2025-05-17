@@ -18,6 +18,7 @@ import json
 import logging
 import sys
 import io
+import random
 
 from flask import Flask, request, jsonify, send_from_directory, redirect, url_for
 import matplotlib
@@ -124,7 +125,7 @@ rtsp_url = "rtsp://10.148.165.1:8554/live"  # 默认使用localhost而非0.0.0.0
 
 ########################################
 # 2) Helper Functions
-########################################
+#######################################
 
 def scale_keypoints(kp_normalized, shape):
     """
@@ -195,7 +196,7 @@ def generate_posture_advice(token, posture_status, angles):
     
     # 改进的提示词，生成更自然、更有个性的建议
     user_prompt = (
-        f"你是一位关心办公人员健康的虚拟助手，可爱且个性化。请根据以下姿势数据，给出一条简短、"
+        f"你是一位关心办公人员健康的虚拟助手，你需要安慰崩溃的学生，安慰的语气且个性化。请根据以下姿势数据，给出一条简短、"
         f"有效且容易理解的改进建议(70-100字)。建议应该具体、实用，语气友好自然：\n\n"
         f"姿势状态：{posture_status}\n"
         f"颈部角度：{angles.get('neck', '--')}度\n"
@@ -679,14 +680,21 @@ def start_rtsp():
     """
     启动 RTSP 检测线程
     """
-    global rtsp_thread, rtsp_thread_running
+    global rtsp_thread, rtsp_thread_running, rtsp_url
     
     # 如果线程已经在运行，返回成功
     if rtsp_thread_running and rtsp_thread and rtsp_thread.is_alive():
         return jsonify({"success": True, "message": "RTSP detection already running"})
     
     # 更新 RTSP URL（如果提供）
-    data = request.get_json()
+    try:
+        data = request.get_json()
+        if data and 'rtsp_url' in data:
+            rtsp_url = data['rtsp_url']
+            print(f"RTSP URL已更新为: {rtsp_url}")
+    except Exception as e:
+        # 如果没有JSON数据或解析失败，忽略错误并继续
+        print(f"No JSON data in request or parse error: {e}")
     
     # 启动线程
     rtsp_thread_running = True
@@ -733,8 +741,31 @@ def rtsp_latest():
     """
     获取最新的 RTSP 检测结果
     """
+    global rtsp_thread_running, rtsp_thread
+    
+    # 检查RTSP线程状态，提供更详细的错误信息
+    if not rtsp_thread_running:
+        return jsonify({
+            "success": False, 
+            "message": "RTSP detection is not running",
+            "error_code": "not_running"
+        })
+    
+    if rtsp_thread and not rtsp_thread.is_alive():
+        return jsonify({
+            "success": False, 
+            "message": "RTSP detection thread has stopped unexpectedly",
+            "error_code": "thread_stopped"
+        })
+    
     if rtsp_result_queue.empty():
-        return jsonify({"success": False, "message": "No RTSP detection results available"})
+        # 提供更具体的错误信息
+        return jsonify({
+            "success": False, 
+            "message": "No RTSP detection results available",
+            "error_code": "no_results",
+            "details": "Camera may be connecting or no frames have been processed yet"
+        })
     
     result = rtsp_result_queue.queue[0]  # 获取但不移除
     return jsonify({"success": True, "result": result})
@@ -799,7 +830,107 @@ def rtsp_pose_data():
     posture_status = result.get('posture_status', '未知')
     angles = result.get('angles', {})
     
-   
+    # 构建HTML响应
+    html = f"""
+    <html>
+    <head>
+        <title>姿态数据</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }}
+            h1 {{ color: #333; }}
+            .data-container {{ background-color: #f5f5f5; padding: 15px; border-radius: 5px; }}
+            .status {{ font-size: 24px; margin: 10px 0; }}
+            .good {{ color: green; }}
+            .bad {{ color: red; }}
+            .unknown {{ color: gray; }}
+            .angles {{ margin-top: 20px; }}
+            table {{ width: 100%; border-collapse: collapse; }}
+            th, td {{ padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }}
+            th {{ background-color: #f2f2f2; }}
+        </style>
+    </head>
+    <body>
+        <h1>实时姿态数据</h1>
+        <div class="data-container">
+            <div class="status {posture_status}">
+                姿势状态: {posture_status.upper()}
+            </div>
+            <div class="angles">
+                <h2>角度数据:</h2>
+                <table>
+                    <tr>
+                        <th>指标</th>
+                        <th>角度值</th>
+                    </tr>
+                    <tr>
+                        <td>颈部角度</td>
+                        <td>{angles.get('neck', '--')}°</td>
+                    </tr>
+                    <tr>
+                        <td>左侧身体角度</td>
+                        <td>{angles.get('left_body', '--')}°</td>
+                    </tr>
+                    <tr>
+                        <td>右侧身体角度</td>
+                        <td>{angles.get('right_body', '--')}°</td>
+                    </tr>
+                    <tr>
+                        <td>平均身体角度</td>
+                        <td>{angles.get('avg_body', '--')}°</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html
+
+@app.route("/get_advice", methods=["GET"])
+def get_advice():
+    """
+    简单端点，返回AI生成的文本建议，使用随机生成的数据模拟实时效果
+    不需要RTSP数据
+    """
+    # 生成随机变化的姿势数据，模拟实时数据
+    
+    # 使用随机数模拟实时数据变化
+    # 颈部角度范围(80-110)，90以下通常为良好姿势
+    neck_angle = random.randint(80, 110)
+    # 身体角度范围(55-80)，70以下通常为良好姿势
+    left_body = random.randint(55, 80)
+    right_body = random.randint(55, 80)
+    # 计算平均身体角度
+    avg_body = (left_body + right_body) // 2
+    
+    # 基于角度确定姿势状态
+    posture_status = "bad" if (neck_angle > 95 or avg_body > 70) else "good"
+    
+    angles = {
+        'neck': neck_angle,
+        'left_body': left_body,
+        'right_body': right_body,
+        'avg_body': avg_body
+    }
+    
+    try:
+        # 生成报告
+        report_data = get_posture_report(angles, posture_status)
+        advice = report_data.get("text", "无法生成建议")
+        
+        # 返回纯文本或JSON
+        format_type = request.args.get('format', 'json')
+        if format_type == 'text':
+            return advice
+        else:
+            return jsonify({
+                "advice": advice,
+                "posture": posture_status,
+                "angles": angles,
+                "timestamp": time.time()  # 添加时间戳表示实时性
+            })
+    except Exception as e:
+        return jsonify({"error": f"生成建议时出错: {str(e)}"})
 
 ########################################
 # 8) Serve the Index HTML
@@ -808,9 +939,16 @@ def rtsp_pose_data():
 @app.route("/")
 def serve_index():
     """
-    Serve the index.html file from the 'static' folder.
+    Redirect to the advice page instead of serving index.html
     """
-    return send_from_directory(app.static_folder, "index.html")
+    return redirect(url_for('serve_advice'))
+
+@app.route("/advice")
+def serve_advice():
+    """
+    Serve the advice.html file for a simplified interface focused only on text advice.
+    """
+    return send_from_directory(app.static_folder, "advice.html")
 
 # 静态文件服务
 @app.route("/static/<path:path>")

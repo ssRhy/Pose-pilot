@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI姿势建议</title>
+    <style>
+      body {
+        font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background-color: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+      }
+      .advice-box {
+        background-color: #fff9c4;
+        border-left: 4px solid #ffc107;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 0 4px 4px 0;
+        transition: all 0.3s ease;
+      }
+      .advice-text {
+        font-size: 18px;
+        line-height: 1.6;
+        color: #333;
+      }
+      .advice-title {
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #1565c0;
+        font-size: 20px;
+      }
+      .advice-icon {
+        display: inline-block;
+        margin-right: 8px;
+        font-size: 22px;
+      }
+      .angles-box {
+        background-color: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 0 4px 4px 0;
+      }
+      .angles-title {
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #0d47a1;
+        font-size: 18px;
+      }
+      .angle-data {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+      }
+      .angle-item {
+        width: 48%;
+        margin-bottom: 10px;
+        padding: 10px;
+        background-color: #f5f5f5;
+        border-radius: 5px;
+      }
+      .angle-label {
+        font-weight: bold;
+        color: #555;
+      }
+      .angle-value {
+        font-size: 24px;
+        color: #2196f3;
+        margin-top: 5px;
+      }
+      .bad-angle {
+        color: #f44336;
+      }
+      .status-indicator {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .status-good {
+        background-color: #e8f5e9;
+        color: #4caf50;
+      }
+      .status-bad {
+        background-color: #ffebee;
+        color: #f44336;
+      }
+      button {
+        background-color: #2196f3;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s;
+        display: block;
+        margin: 20px auto;
+        width: 200px;
+      }
+      button:hover {
+        background-color: #0b7dda;
+      }
+      .loading {
+        text-align: center;
+        margin: 20px 0;
+        font-style: italic;
+        color: #666;
+      }
+      .auto-refresh {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 20px;
+      }
+      .refresh-toggle {
+        margin-right: 10px;
+      }
+      .last-update {
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        margin-top: 5px;
+      }
+      .refresh-interval {
+        margin-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>AI姿势建议实时监测</h1>
+
+      <div class="advice-box" id="adviceBox">
+        <div class="advice-title">
+          <span class="advice-icon">💡</span>智能建议
+        </div>
+        <p class="advice-text" id="adviceText">
+          点击"获取建议"按钮或开启自动刷新获取AI生成的姿势建议...
+        </p>
+      </div>
+
+      <div class="angles-box" id="anglesBox" style="display: none">
+        <div class="angles-title">姿势数据详情</div>
+        <div id="postureStatus" class="status-indicator status-bad">
+          姿势状态：不良
+        </div>
+        <div class="angle-data">
+          <div class="angle-item">
+            <div class="angle-label">颈部角度</div>
+            <div id="neckAngle" class="angle-value">95°</div>
+          </div>
+          <div class="angle-item">
+            <div class="angle-label">左侧身体角度</div>
+            <div id="leftBodyAngle" class="angle-value">65°</div>
+          </div>
+          <div class="angle-item">
+            <div class="angle-label">右侧身体角度</div>
+            <div id="rightBodyAngle" class="angle-value">68°</div>
+          </div>
+          <div class="angle-item">
+            <div class="angle-label">平均身体角度</div>
+            <div id="avgBodyAngle" class="angle-value">85°</div>
+          </div>
+        </div>
+        <div class="last-update" id="lastUpdate"></div>
+      </div>
+
+      <button id="getAdviceBtn">获取建议</button>
+      <div id="loading" class="loading" style="display: none">
+        正在生成建议中...
+      </div>
+
+      <div class="auto-refresh">
+        <label class="refresh-toggle">
+          <input type="checkbox" id="autoRefreshToggle" /> 自动刷新
+        </label>
+        <select id="refreshInterval" class="refresh-interval">
+          <option value="5000">5秒</option>
+          <option value="10000" selected>10秒</option>
+          <option value="30000">30秒</option>
+          <option value="60000">1分钟</option>
+        </select>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const adviceText = document.getElementById("adviceText");
+        const anglesBox = document.getElementById("anglesBox");
+        const postureStatus = document.getElementById("postureStatus");
+        const neckAngle = document.getElementById("neckAngle");
+        const leftBodyAngle = document.getElementById("leftBodyAngle");
+        const rightBodyAngle = document.getElementById("rightBodyAngle");
+        const avgBodyAngle = document.getElementById("avgBodyAngle");
+        const lastUpdate = document.getElementById("lastUpdate");
+        const getAdviceBtn = document.getElementById("getAdviceBtn");
+        const loading = document.getElementById("loading");
+        const autoRefreshToggle = document.getElementById("autoRefreshToggle");
+        const refreshInterval = document.getElementById("refreshInterval");
+
+        let refreshTimer = null;
+
+        // 事件监听器
+        getAdviceBtn.addEventListener("click", getAdvice);
+        autoRefreshToggle.addEventListener("change", toggleAutoRefresh);
+        refreshInterval.addEventListener("change", updateRefreshInterval);
+
+        // 页面加载时自动获取一次数据
+        getAdvice();
+
+        function getAdvice() {
+          // 显示加载状态
+          if (!refreshTimer) {
+            adviceText.textContent = "正在获取建议...";
+            loading.style.display = "block";
+          }
+          getAdviceBtn.disabled = true;
+
+          // 调用API获取建议 (使用默认的JSON格式)
+          fetch("/get_advice")
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("网络请求失败");
+              }
+              return response.json();
+            })
+            .then((data) => {
+              // 显示获取到的建议
+              adviceText.textContent = data.advice;
+
+              // 显示角度数据
+              anglesBox.style.display = "block";
+
+              // 更新姿势状态
+              postureStatus.textContent =
+                "姿势状态：" + (data.posture === "good" ? "良好" : "不良");
+              postureStatus.className =
+                "status-indicator " +
+                (data.posture === "good" ? "status-good" : "status-bad");
+
+              // 更新角度数据
+              const angles = data.angles;
+              updateAngleDisplay(neckAngle, angles.neck, 90); // 颈部角度超过90度通常不好
+              updateAngleDisplay(leftBodyAngle, angles.left_body, 70); // 身体角度超过70度通常不好
+              updateAngleDisplay(rightBodyAngle, angles.right_body, 70);
+              updateAngleDisplay(avgBodyAngle, angles.avg_body, 70);
+
+              // 更新最后刷新时间
+              const now = new Date();
+              lastUpdate.textContent = `最后更新: ${now.toLocaleTimeString()}`;
+
+              // 隐藏加载状态
+              loading.style.display = "none";
+              getAdviceBtn.disabled = false;
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+              adviceText.textContent = "获取建议失败，请重试";
+              loading.style.display = "none";
+              getAdviceBtn.disabled = false;
+              anglesBox.style.display = "none";
+            });
+        }
+
+        // 自动刷新切换
+        function toggleAutoRefresh() {
+          if (autoRefreshToggle.checked) {
+            startAutoRefresh();
+          } else {
+            stopAutoRefresh();
+          }
+        }
+
+        // 开始自动刷新
+        function startAutoRefresh() {
+          if (refreshTimer) {
+            clearInterval(refreshTimer);
+          }
+          const interval = parseInt(refreshInterval.value);
+          refreshTimer = setInterval(getAdvice, interval);
+          console.log(`自动刷新已开启，间隔 ${interval / 1000} 秒`);
+        }
+
+        // 停止自动刷新
+        function stopAutoRefresh() {
+          if (refreshTimer) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+            console.log("自动刷新已停止");
+          }
+        }
+
+        // 更新刷新间隔
+        function updateRefreshInterval() {
+          if (autoRefreshToggle.checked) {
+            startAutoRefresh(); // 重新启动定时器使用新间隔
+          }
+        }
+
+        // 辅助函数：根据阈值更新角度显示样式
+        function updateAngleDisplay(element, value, threshold) {
+          element.textContent = value + "°";
+          if (value > threshold) {
+            element.classList.add("bad-angle");
+          } else {
+            element.classList.remove("bad-angle");
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
