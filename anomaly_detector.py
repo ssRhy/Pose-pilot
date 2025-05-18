@@ -1,20 +1,20 @@
 #anomaly_detector.py
 '''
-# Anomaly Detector for Posture Detection
-# This module implements an anomaly detector for posture detection using angles between keypoints.
-# It provides two modes:
-# 1) Normal angle checks (fall-like / bad posture).
-# 2) Deviation from a user-defined baseline posture.
+# 姿态检测异常检测器
+# 该模块使用关键点之间的角度实现姿态检测的异常检测器。
+# 它提供两种模式：
+# 1) 常规角度检查（跌倒类 / 不良姿态）。
+# 2) 与用户定义的基准姿态的偏差。
 # 
-# The detector computes angles between keypoints and checks if they are within specified thresholds.'''
+# 检测器计算关键点之间的角度，并检查它们是否在指定的阈值范围内。'''
 import numpy as np
 import time
 
 class AnomalyDetector:
     """
-    A posture anomaly detector with two modes:
-      1) Normal angle checks ("fall-like" / "bad" posture).
-      2) Deviation from a user-defined baseline posture.
+    具有两种模式的姿态异常检测器：
+      1) 常规角度检查（"跌倒类" / "不良"姿态）。
+      2) 与用户定义的基准姿态的偏差。
     """
 
     def __init__(
@@ -25,12 +25,12 @@ class AnomalyDetector:
         deviation_angle_threshold=15
     ):
         """
-        Args:
-            body_angle_threshold      (float): If (shoulder-hip-knee) < this => bad posture.
-            neck_angle_threshold      (float): If neck angle < this => bad posture.
-            history_window            (int)  : Rolling time window (seconds) for 'bad' posture.
-            deviation_angle_threshold (float): If user sets a baseline, differences larger
-                                              than this trigger an alert.
+        参数:
+            body_angle_threshold      (float): 如果(肩-髋-膝)角度 < 此值 => 不良姿态。
+            neck_angle_threshold      (float): 如果颈部角度 < 此值 => 不良姿态。
+            history_window            (int)  : '不良'姿态的滚动时间窗口（秒）。
+            deviation_angle_threshold (float): 如果用户设置了基准，差异大于
+                                              此值将触发警报。
         """
         self.timestamp_history = []
         self.body_angle_threshold = body_angle_threshold
@@ -43,24 +43,24 @@ class AnomalyDetector:
 
     def set_baseline(self, keypoints):
         """
-        Save the user's current posture as the 'ideal' baseline,
-        by computing the main angles (left shoulder-hip-knee, right shoulder-hip-knee, neck).
+        通过计算主要角度（左肩-髋-膝、右肩-髋-膝、颈部），
+        将用户当前姿态保存为'理想'基准。
         """
         if len(keypoints) < 15:
-            print("Not enough keypoints to set a baseline.")
+            print("没有足够的关键点来设置基准。")
             return
 
         angles = self._compute_angles(keypoints)
         self.baseline_angles = angles
-        print(f"[AnomalyDetector] Baseline angles set: {angles}")
+        print(f"[异常检测器] 基准角度已设置: {angles}")
 
     def has_baseline(self):
         return self.baseline_angles is not None
 
     def is_deviated_from_baseline(self, keypoints):
         """
-        Compare current posture angles to the baseline angles.
-        If difference is > deviation_angle_threshold in ANY angle => 'bad' posture.
+        将当前姿态角度与基准角度进行比较。
+        如果任何角度的差异 > deviation_angle_threshold => '不良'姿态。
         """
         if not self.has_baseline():
             return False
@@ -75,8 +75,8 @@ class AnomalyDetector:
             base_val = self.baseline_angles.get(name, 9999)
             curr_val = current_angles.get(name, 9999)
             diff = abs(base_val - curr_val)
-            # Debug:
-            # print(f"[DEBUG] Angle {name}: baseline={base_val:.1f}, current={curr_val:.1f}, diff={diff:.1f}")
+            # 调试:
+            # print(f"[调试] 角度 {name}: 基准={base_val:.1f}, 当前={curr_val:.1f}, 差异={diff:.1f}")
             if diff > self.deviation_angle_threshold:
                 return True
 
@@ -84,8 +84,8 @@ class AnomalyDetector:
 
     def is_fall_like(self, keypoints):
         """
-        The older angle-threshold logic, used if no baseline is set.
-        We'll check if posture angles are 'bad' within the last X seconds.
+        如果没有设置基准，则使用较旧的角度阈值逻辑。
+        我们将检查在过去X秒内姿态角度是否'不良'。
         """
         if len(keypoints) < 15:
             return False
@@ -99,8 +99,8 @@ class AnomalyDetector:
             deg = np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0)))
             return deg
 
-        # YOLOv8 keypoints: 5=left_shoulder, 6=right_shoulder,
-        # 11=left_hip, 12=right_hip, 13=left_knee, 14=right_knee, 0=nose
+        # YOLOv8关键点: 5=左肩, 6=右肩,
+        # 11=左髋, 12=右髋, 13=左膝, 14=右膝, 0=鼻子
         left_angle = angle(keypoints[5], keypoints[11], keypoints[13])
         right_angle = angle(keypoints[6], keypoints[12], keypoints[14])
         avg_body_angle = (left_angle + right_angle) / 2
@@ -121,11 +121,11 @@ class AnomalyDetector:
         return len(self.timestamp_history) >= 2
 
     # ----------------------------
-    # Internal utility
+    # 内部工具函数
     # ----------------------------
     def _compute_angles(self, keypoints):
         """
-        Return a dict of the main angles:
+        返回主要角度的字典：
           left_body, right_body, avg_body, neck
         """
         def angle(a, b, c):
@@ -137,10 +137,10 @@ class AnomalyDetector:
             deg = np.degrees(np.arccos(np.clip(cosine, -1.0, 1.0)))
             return deg
 
-        left_body = angle(keypoints[5], keypoints[11], keypoints[13])   # L shoulder-hip-knee
-        right_body = angle(keypoints[6], keypoints[12], keypoints[14]) # R shoulder-hip-knee
+        left_body = angle(keypoints[5], keypoints[11], keypoints[13])   # 左肩-髋-膝
+        right_body = angle(keypoints[6], keypoints[12], keypoints[14]) # 右肩-髋-膝
         avg_body = (left_body + right_body) / 2
-        neck = angle(keypoints[0], keypoints[5], keypoints[6])         # nose ~ shoulders
+        neck = angle(keypoints[0], keypoints[5], keypoints[6])         # 鼻子~肩膀
 
         return {
             "left_body": left_body,

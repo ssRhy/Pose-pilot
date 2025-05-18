@@ -1,9 +1,9 @@
 # yolo_detector.py
 '''
-# YOLOv8-based person detection with higher confidence threshold.
-# This module uses the YOLOv8 model to detect persons in a video stream.
-# It applies a higher confidence threshold to filter out low-confidence detections.
-# It also includes gamma correction for image brightness adjustment and an advanced box filter to remove small or non-standard aspect ratio boxes.  '''
+# 基于YOLOv8的人体检测，使用较高的置信度阈值。
+# 该模块使用YOLOv8模型在视频流中检测人体。
+# 它应用较高的置信度阈值来过滤掉低置信度的检测结果。
+# 它还包括伽马校正用于图像亮度调整，以及高级边界框过滤器来移除小尺寸或非标准宽高比的边界框。  '''
 import logging
 import cv2
 import numpy as np
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class YOLODetector:
     """
-    YOLOv8-based person detection with higher confidence threshold.
+    基于YOLOv8的人体检测，使用较高的置信度阈值。
     """
 
     def __init__(
@@ -45,24 +45,24 @@ class YOLODetector:
         self.advanced_box_filter = advanced_box_filter
         self.cap = None
 
-        logger.info("YOLODetector with model=%s, device=%s, conf=%.2f", model_path, device, conf_thres)
+        logger.info("YOLODetector 使用模型=%s, 设备=%s, 置信度=%.2f", model_path, device, conf_thres)
 
     def open_camera(self, camera_index: int = 0) -> bool:
-        logger.info("Opening camera at index %d", camera_index)
+        logger.info("正在打开索引为 %d 的相机", camera_index)
         self.cap = cv2.VideoCapture(camera_index)
         if not self.cap.isOpened():
-            logger.error("Failed to open camera index %d", camera_index)
+            logger.error("无法打开索引为 %d 的相机", camera_index)
             return False
         return True
 
     def read_frame(self):
         if self.cap is None or not self.cap.isOpened():
-            logger.error("Camera not opened.")
+            logger.error("相机未打开。")
             return None
 
         ret, frame = self.cap.read()
         if not ret:
-            logger.warning("Failed to read frame from camera.")
+            logger.warning("无法从相机读取帧。")
             return None
 
         if self.gamma != 1.0:
