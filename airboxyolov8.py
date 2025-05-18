@@ -322,16 +322,23 @@ def rtsp_detection_thread(yolov8, args):
             
         print(f"Attempting to connect to RTSP stream: {rtsp_url}")
         
-        # Setup RTSP connection - 修改连接方式
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+        # Setup RTSP connection
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|timeout;15000000"  # 15 sec timeout
         
         # Try to open RTSP stream
         print("Creating VideoCapture object...")
-        # 使用默认方式打开RTSP流
-        cap = cv2.VideoCapture(rtsp_url)
+        cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
         
         print("Setting buffer size...")
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+        
+        # Set read timeout
+        if hasattr(cv2, 'CAP_PROP_OPEN_TIMEOUT'):
+            print("Setting connection timeout to 15 seconds...")
+            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT, 15000)  # 15 sec connection timeout
+        if hasattr(cv2, 'CAP_PROP_READ_TIMEOUT'):
+            print("Setting read timeout to 5 seconds...")
+            cap.set(cv2.CAP_PROP_READ_TIMEOUT, 5000)   # 5 sec read timeout
         
         if not cap.isOpened():
             print(f"Error: Unable to connect to RTSP stream {rtsp_url}")
@@ -354,7 +361,7 @@ def rtsp_detection_thread(yolov8, args):
                 # Wait a bit
                 time.sleep(1)
                 # Reconnect
-                cap = cv2.VideoCapture(rtsp_url)
+                cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
                 cap.set(cv2.CAP_PROP_RTSP_TRANSPORT, cv2.CAP_RTSP_TCP)
                 continue
@@ -507,19 +514,6 @@ def stop_rtsp_thread():
         return False
 
 def main(args):
-    # 添加GUI支持检查
-    has_gui_support = True
-    if args.display:
-        try:
-            # 尝试创建一个小窗口来测试GUI支持
-            test_window_name = "test_window"
-            cv2.namedWindow(test_window_name, cv2.WINDOW_NORMAL)
-            cv2.destroyWindow(test_window_name)
-        except:
-            print("WARNING: OpenCV GUI support not available. Running without display.")
-            has_gui_support = False
-            args.display = False
-    
     # check bmodel
     if not os.path.exists(args.bmodel):
         raise FileNotFoundError('{} is not existed.'.format(args.bmodel))
@@ -551,7 +545,7 @@ def main(args):
                     result = get_latest_result()
                     if result:
                         # Display the latest result if display is enabled
-                        if args.display and has_gui_support:
+                        if args.display:
                             # Decode base64 image
                             img_data = result['image'].split(',')[1]
                             img_bytes = base64.b64decode(img_data)
@@ -593,12 +587,8 @@ def main(args):
                 print("Interrupted by user")
             finally:
                 # Clean up
-                # 仅在支持GUI时才调用destroyAllWindows
-                if args.display and has_gui_support:
-                    try:
-                        cv2.destroyAllWindows()
-                    except Exception as e:
-                        print(f"Warning: Failed to destroy OpenCV windows: {e}")
+                if args.display:
+                    cv2.destroyAllWindows()
                 stop_rtsp_thread()
     
     except Exception as e:
@@ -609,9 +599,7 @@ def main(args):
 
 def argsparser():
     parser = argparse.ArgumentParser(prog=__file__)
-    input_group = parser.add_mutually_exclusive_group()
-    input_group.add_argument('--rtsp_url', type=str, default=None, help='RTSP URL to connect to')
-    input_group.add_argument('--input', type=str, default=None, help='RTSP URL to connect to (legacy parameter)')
+    parser.add_argument('--rtsp_url', type=str, default='rtsp://10.148.165.1:8554/live', help='RTSP URL to connect to')
     parser.add_argument('--bmodel', type=str, default='../models/BM1684X/yolov8s-pose_fp32_1b.bmodel', help='path of bmodel')
     parser.add_argument('--dev_id', type=int, default=0, help='dev id')
     parser.add_argument('--conf_thresh', type=float, default=0.25, help='confidence threshold')
@@ -620,15 +608,6 @@ def argsparser():
     parser.add_argument('--save', action='store_true', help='save detection results')
     parser.add_argument('--save_interval', type=int, default=30, help='save every N frames')
     args = parser.parse_args()
-    
-    # 处理参数兼容性：如果指定了--input而没有指定--rtsp_url，将input的值赋给rtsp_url
-    if args.rtsp_url is None and args.input is not None:
-        args.rtsp_url = args.input
-    
-    # 如果两者都未指定，使用默认值
-    if args.rtsp_url is None:
-        args.rtsp_url = 'rtsp://10.148.165.1:8554/live'
-        
     return args
 
 if __name__ == "__main__":
