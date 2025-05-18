@@ -599,7 +599,9 @@ def main(args):
 
 def argsparser():
     parser = argparse.ArgumentParser(prog=__file__)
-    parser.add_argument('--rtsp_url', type=str, default='rtsp://10.148.165.1:8554/live', help='RTSP URL to connect to')
+    input_group = parser.add_mutually_exclusive_group()
+    input_group.add_argument('--rtsp_url', type=str, default=None, help='RTSP URL to connect to')
+    input_group.add_argument('--input', type=str, default=None, help='RTSP URL to connect to (legacy parameter)')
     parser.add_argument('--bmodel', type=str, default='../models/BM1684X/yolov8s-pose_fp32_1b.bmodel', help='path of bmodel')
     parser.add_argument('--dev_id', type=int, default=0, help='dev id')
     parser.add_argument('--conf_thresh', type=float, default=0.25, help='confidence threshold')
@@ -608,6 +610,15 @@ def argsparser():
     parser.add_argument('--save', action='store_true', help='save detection results')
     parser.add_argument('--save_interval', type=int, default=30, help='save every N frames')
     args = parser.parse_args()
+    
+    # 处理参数兼容性：如果指定了--input而没有指定--rtsp_url，将input的值赋给rtsp_url
+    if args.rtsp_url is None and args.input is not None:
+        args.rtsp_url = args.input
+    
+    # 如果两者都未指定，使用默认值
+    if args.rtsp_url is None:
+        args.rtsp_url = 'rtsp://10.148.165.1:8554/live'
+        
     return args
 
 if __name__ == "__main__":
