@@ -121,7 +121,7 @@ rtsp_thread = None
 # Create the anomaly detector instance
 anomaly_detector = AnomalyDetector()
 
-rtsp_url = "rtsp://10.148.165.1:8554/live"  # 默认使用localhost而非0.0.0.0
+rtsp_url = "rtsp://192.168.3.242:8554/live"  # 默认使用localhost而非0.0.0.0
 
 ########################################
 # 2) Helper Functions

@@ -56,7 +56,7 @@ def is_image(filename):
 if __name__ == "__main__":
     # 参数解析
     parse = argparse.ArgumentParser(description="Demo for media basic interface/push_stream.py")
-    parse.add_argument('--input_path', default="rtsp://127.0.0.1:8554/live", type=str, help="Path or rtsp url to the video/image file.")#文件夹所在目录
+    parse.add_argument('--input_path', default="rtsp://192.168.3.242:8554/live", type=str, help="Path or rtsp url to the video/image file.")#文件夹所在目录
     parse.add_argument('--output_path', type=str,help="Local file path or stream url")
     parse.add_argument('--device_id', default=0, type=int,help="Device id")   
     parse.add_argument('--compressed_nv12', default=True,type=bool,help="Whether the format of decoded output is compressed NV12.")
