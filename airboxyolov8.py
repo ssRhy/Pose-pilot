@@ -322,23 +322,16 @@ def rtsp_detection_thread(yolov8, args):
             
         print(f"Attempting to connect to RTSP stream: {rtsp_url}")
         
-        # Setup RTSP connection
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|timeout;15000000"  # 15 sec timeout
+        # Setup RTSP connection - 修改连接方式
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
         
         # Try to open RTSP stream
         print("Creating VideoCapture object...")
-        cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+        # 使用默认方式打开RTSP流
+        cap = cv2.VideoCapture(rtsp_url)
         
         print("Setting buffer size...")
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-        
-        # Set read timeout
-        if hasattr(cv2, 'CAP_PROP_OPEN_TIMEOUT'):
-            print("Setting connection timeout to 15 seconds...")
-            cap.set(cv2.CAP_PROP_OPEN_TIMEOUT, 15000)  # 15 sec connection timeout
-        if hasattr(cv2, 'CAP_PROP_READ_TIMEOUT'):
-            print("Setting read timeout to 5 seconds...")
-            cap.set(cv2.CAP_PROP_READ_TIMEOUT, 5000)   # 5 sec read timeout
         
         if not cap.isOpened():
             print(f"Error: Unable to connect to RTSP stream {rtsp_url}")
@@ -361,7 +354,7 @@ def rtsp_detection_thread(yolov8, args):
                 # Wait a bit
                 time.sleep(1)
                 # Reconnect
-                cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+                cap = cv2.VideoCapture(rtsp_url)
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
                 cap.set(cv2.CAP_PROP_RTSP_TRANSPORT, cv2.CAP_RTSP_TCP)
                 continue
@@ -514,6 +507,19 @@ def stop_rtsp_thread():
         return False
 
 def main(args):
+    # 添加GUI支持检查
+    has_gui_support = True
+    if args.display:
+        try:
+            # 尝试创建一个小窗口来测试GUI支持
+            test_window_name = "test_window"
+            cv2.namedWindow(test_window_name, cv2.WINDOW_NORMAL)
+            cv2.destroyWindow(test_window_name)
+        except:
+            print("WARNING: OpenCV GUI support not available. Running without display.")
+            has_gui_support = False
+            args.display = False
+    
     # check bmodel
     if not os.path.exists(args.bmodel):
         raise FileNotFoundError('{} is not existed.'.format(args.bmodel))
@@ -545,7 +551,7 @@ def main(args):
                     result = get_latest_result()
                     if result:
                         # Display the latest result if display is enabled
-                        if args.display:
+                        if args.display and has_gui_support:
                             # Decode base64 image
                             img_data = result['image'].split(',')[1]
                             img_bytes = base64.b64decode(img_data)
@@ -587,8 +593,12 @@ def main(args):
                 print("Interrupted by user")
             finally:
                 # Clean up
-                if args.display:
-                    cv2.destroyAllWindows()
+                # 仅在支持GUI时才调用destroyAllWindows
+                if args.display and has_gui_support:
+                    try:
+                        cv2.destroyAllWindows()
+                    except Exception as e:
+                        print(f"Warning: Failed to destroy OpenCV windows: {e}")
                 stop_rtsp_thread()
     
     except Exception as e:
