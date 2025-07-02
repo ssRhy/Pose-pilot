@@ -1,6 +1,7 @@
 import json
 import base64
 import requests
+import time
 
 def text_to_tts_payload(text: str) -> dict:
     # 1. 文本转 GB2312 bytes
@@ -9,14 +10,15 @@ def text_to_tts_payload(text: str) -> dict:
     b64_str = base64.b64encode(gb_bytes).decode('ascii')
     return {"tts": {"data": b64_str}}
 
-def send_tts(text: str, host: str = "192.168.3.29", port: int = 80):
+def send_tts(text: str, host: str = "192.168.3.29", port: int = 80, delay_seconds: int = 30):
     """
-    发送文本到IP音箱进行语音播报
+    发送文本到IP音箱进行语音播报，在发送前等待指定的延迟时间
     
     Args:
         text: 要播报的文本内容
         host: IP音箱的IP地址，默认为192.168.3.29
         port: IP音箱的端口，默认为80
+        delay_seconds: 发送前的延迟时间（秒），默认为20秒
         
     Returns:
         dict: 音箱返回的响应数据
@@ -32,7 +34,10 @@ def send_tts(text: str, host: str = "192.168.3.29", port: int = 80):
         "Content-Type": "application/json"
     }
     
-    print(f"发送文本到IP音箱({host}:{port}): {text[:30]}...")
+    print(f"将在{delay_seconds}秒后发送文本到IP音箱({host}:{port}): {text[:30]}...")
+    # 等待指定的延迟时间
+    time.sleep(delay_seconds)
+    print(f"正在发送文本到IP音箱({host}:{port})...")
     resp = requests.post(url, headers=headers, data=payload_bytes)
     resp.raise_for_status()
     return resp.json()
