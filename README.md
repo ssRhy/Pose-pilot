@@ -331,6 +331,13 @@ estimator = TransformerPoseEstimator(
 pose_estimator = TransformerPoseEstimator()
 ```
 
+也可以通过环境变量在不改动代码的情况下启用：
+
+```bash
+# 启用Transformer并指定类型(swin/vit/detr)
+USE_TRANSFORMER=1 TRANSFORMER_TYPE=swin python main.py
+```
+
 ## 常见问题
 
 1. **模型下载失败**
@@ -354,5 +361,7 @@ pose_estimator = TransformerPoseEstimator()
 [MIT License](LICENSE)
 
 ## 联系方式
+ USE_TRANSFORMER=1 TRANSFORMER_TYPE=swin python /home/hy/桌面/Pose-pilot/main.py
+   python /home/hy/桌面/Pose-pilot/examples/transformer_demo.py --camera 0 --type swin
 
 如有问题或建议，请提交 Issue 或联系项目维护者。

@@ -67,49 +67,47 @@ detector = YOLODetector(
     advanced_box_filter=True
 )
 
-# Create dummy pose estimator if the real one fails due to network issues
+# Create pose estimator with optional Transformer optimization
 try:
-    from pose_estimator import PoseEstimator
-    pose_estimator = PoseEstimator()
-    logger.info("Successfully initialized PoseEstimator")
+    use_transformer_env = str(os.getenv("USE_TRANSFORMER", "0")).lower() in ("1", "true", "yes", "y")
+    transformer_type_env = os.getenv("TRANSFORMER_TYPE", "swin")
+
+    if use_transformer_env:
+        # 优先使用Transformer优化版本
+        from transformer_pose_estimator import TransformerPoseEstimator
+        pose_estimator = TransformerPoseEstimator(
+            model_path="yolov8n-pose.pt",
+            use_transformer=True,
+            transformer_type=transformer_type_env
+        )
+        logger.info(f"Initialized TransformerPoseEstimator (type={transformer_type_env})")
+    else:
+        from pose_estimator import PoseEstimator
+        pose_estimator = PoseEstimator()
+        logger.info("Initialized standard PoseEstimator")
 except Exception as e:
-    logger.warning(f"Failed to initialize real PoseEstimator: {e}")
-    logger.warning("Using dummy PoseEstimator for TTS testing")
-    
+    logger.warning(f"Failed to initialize PoseEstimator: {e}")
+    logger.warning("Falling back to DummyPoseEstimator for TTS testing")
+
     # Create a dummy pose estimator class for testing TTS functionality
     class DummyPoseEstimator:
         def get_pose(self, frame):
             # Return dummy keypoints and the original frame
             h, w = frame.shape[:2]
-            # Create dummy keypoints in normalized coordinates (17 COCO keypoints)
             dummy_keypoints = [
-                (0.5, 0.1),   # 0=nose
-                (0.45, 0.1),  # 1=left_eye
-                (0.55, 0.1),  # 2=right_eye
-                (0.4, 0.12),  # 3=left_ear
-                (0.6, 0.12),  # 4=right_ear
-                (0.4, 0.3),   # 5=left_shoulder
-                (0.6, 0.3),   # 6=right_shoulder
-                (0.35, 0.45), # 7=left_elbow
-                (0.65, 0.45), # 8=right_elbow
-                (0.3, 0.6),   # 9=left_wrist
-                (0.7, 0.6),   # 10=right_wrist
-                (0.45, 0.6),  # 11=left_hip
-                (0.55, 0.6),  # 12=right_hip
-                (0.45, 0.8),  # 13=left_knee
-                (0.55, 0.8),  # 14=right_knee
-                (0.45, 0.95), # 15=left_ankle
-                (0.55, 0.95)  # 16=right_ankle
+                (0.5, 0.1), (0.45, 0.1), (0.55, 0.1), (0.4, 0.12), (0.6, 0.12),
+                (0.4, 0.3), (0.6, 0.3), (0.35, 0.45), (0.65, 0.45), (0.3, 0.6),
+                (0.7, 0.6), (0.45, 0.6), (0.55, 0.6), (0.45, 0.8), (0.55, 0.8),
+                (0.45, 0.95), (0.55, 0.95)
             ]
-            
-            # Draw circles for keypoints on a copy of the frame
+
             annotated_frame = frame.copy()
             for x_norm, y_norm in dummy_keypoints:
                 x, y = int(x_norm * w), int(y_norm * h)
                 cv2.circle(annotated_frame, (x, y), 5, (0, 255, 0), -1)
-            
+
             return dummy_keypoints, annotated_frame
-    
+
     pose_estimator = DummyPoseEstimator()
 
 # 创建队列来存储最新的检测结果

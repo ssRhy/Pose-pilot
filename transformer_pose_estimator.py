@@ -16,8 +16,8 @@ from typing import Optional, Tuple, List
 from ultralytics import YOLO
 
 try:
-    import timm
-    from transformers import DETransformerModel
+    import timm  # 可选：用于Swin/Vision Transformer等骨干
+    import transformers  # 可选：如需使用预训练Transformer模型
     TRANSFORMERS_AVAILABLE = True
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
